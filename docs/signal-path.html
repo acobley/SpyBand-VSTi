@@ -53,7 +53,7 @@
   </defs>
 
   <!-- ================= CARRIER LANE ================= -->
-  <text class="lane" x="30" y="52" fill="#2f6296">CARRIER — the live input, and what you hear the shape of</text>
+  <text class="lane" x="30" y="52" fill="#2f6296">CARRIER — the LEFT input, and what you hear the shape of</text>
 
   <rect class="bx neu" x="30" y="90" width="112" height="64"/>
   <text class="t" x="86" y="116" text-anchor="middle">Audio In</text>
@@ -65,26 +65,30 @@
   <text class="s" x="239" y="147" text-anchor="middle">unity at 20 %</text>
   <path class="wc" d="M142,122 H176" marker-end="url(#ac)"/>
 
-  <circle cx="345" cy="122" r="14" fill="#efe7f7" stroke="#6b4a92" stroke-width="1.4"/>
-  <text class="t" x="345" y="128" text-anchor="middle" font-size="16">+</text>
-  <path class="wc" d="M302,122 H331" marker-end="url(#ac)"/>
+  <path class="wc" d="M302,122 H313"/>
+  <circle cx="326" cy="122" r="11" fill="#2f6296"/>
+  <text x="326" y="127" text-anchor="middle" font-size="12.5" font-weight="700" fill="#ffffff">L</text>
 
-  <rect class="bx car" x="402" y="90" width="152" height="64"/>
-  <text class="t" x="478" y="114" text-anchor="middle">Noise Override</text>
-  <text class="s" x="478" y="132" text-anchor="middle">replaces the carrier</text>
-  <text class="s" x="478" y="147" text-anchor="middle">entirely, either mode</text>
-  <path class="wc" d="M359,122 H402" marker-end="url(#ac)"/>
+  <circle cx="372" cy="122" r="14" fill="#efe7f7" stroke="#6b4a92" stroke-width="1.4"/>
+  <text class="t" x="372" y="128" text-anchor="middle" font-size="16">+</text>
+  <path class="wc" d="M337,122 H358" marker-end="url(#ac)"/>
 
-  <rect class="bx car" x="604" y="80" width="182" height="84"/>
-  <text class="t" x="695" y="106" text-anchor="middle">Carrier bank</text>
-  <text class="s" x="695" y="124" text-anchor="middle">9 / 12 / 18 / 22 bandpass</text>
-  <text class="s" x="695" y="139" text-anchor="middle">Bottom Freq · Top Freq</text>
-  <text class="s" x="695" y="154" text-anchor="middle">Resonance · Filter Slopes</text>
-  <path class="wc" d="M554,122 H604" marker-end="url(#ac)"/>
-  <text class="note" x="695" y="184" text-anchor="middle">Stereo off sums L + R and vocodes once</text>
+  <rect class="bx car" x="420" y="90" width="152" height="64"/>
+  <text class="t" x="496" y="114" text-anchor="middle">Noise Override</text>
+  <text class="s" x="496" y="132" text-anchor="middle">replaces the carrier</text>
+  <text class="s" x="496" y="147" text-anchor="middle">entirely, either mode</text>
+  <path class="wc" d="M386,122 H420" marker-end="url(#ac)"/>
 
-  <path class="wc" d="M786,122 H818 V318" marker-end="url(#ac)"/>
-  <text class="s" x="830" y="232" fill="#2f6296">one band per COLUMN</text>
+  <rect class="bx car" x="622" y="80" width="182" height="84"/>
+  <text class="t" x="713" y="106" text-anchor="middle">Carrier bank</text>
+  <text class="s" x="713" y="124" text-anchor="middle">9 / 12 / 18 / 22 bandpass</text>
+  <text class="s" x="713" y="139" text-anchor="middle">Bottom Freq · Top Freq</text>
+  <text class="s" x="713" y="154" text-anchor="middle">Resonance · Filter Slopes</text>
+  <path class="wc" d="M572,122 H622" marker-end="url(#ac)"/>
+  <text class="note" x="713" y="184" text-anchor="middle">Stereo off sums L + R and vocodes once</text>
+
+  <path class="wc" d="M804,122 H836 V318" marker-end="url(#ac)"/>
+  <text class="s" x="848" y="232" fill="#2f6296">one band per COLUMN</text>
 
   <!-- ================= PINK NOISE ================= -->
   <rect class="bx noi" x="330" y="258" width="200" height="84"/>
@@ -94,8 +98,8 @@
   <text class="s" x="430" y="331" text-anchor="middle">× Unvoiced Noise Level</text>
   <text class="note" x="430" y="362" text-anchor="middle">added to the carrier while unvoiced — sample mode only</text>
 
-  <path class="wn" d="M380,258 V204 H345 V138" marker-end="url(#an)"/>
-  <path class="wn" d="M490,258 V156" marker-end="url(#an)"/>
+  <path class="wn" d="M400,258 V204 H372 V138" marker-end="url(#an)"/>
+  <path class="wn" d="M496,258 V156" marker-end="url(#an)"/>
 
   <!-- ================= VOICED DETECTOR ================= -->
   <rect class="bx noi" x="330" y="424" width="250" height="126"/>
@@ -156,7 +160,7 @@
   <text class="note" x="680" y="676" text-anchor="middle">tapped BEFORE Env Level</text>
 
   <!-- ================= MODULATOR LANE ================= -->
-  <text class="lane" x="244" y="694" fill="#8a6410">MODULATOR — the samples, and what does the shaping</text>
+  <text class="lane" x="244" y="694" fill="#8a6410">MODULATOR — the samples, or the RIGHT input with Interlace on</text>
 
   <rect class="bx mod" x="30" y="778" width="176" height="58"/>
   <text class="t" x="118" y="801" text-anchor="middle">Samples 1–5</text>
@@ -193,7 +197,9 @@
 
   <!-- In R taps off Src Level and runs down the clear left channel -->
   <path class="wm" d="M200,156 V753 H244" marker-end="url(#am)"/>
-  <text class="note" x="192" y="470" text-anchor="middle" transform="rotate(-90 192 470)">In R, after Src Level</text>
+  <circle cx="200" cy="200" r="11" fill="#8a6410"/>
+  <text x="200" y="205" text-anchor="middle" font-size="12.5" font-weight="700" fill="#ffffff">R</text>
+  <text class="note" x="182" y="470" text-anchor="middle" transform="rotate(-90 182 470)">the right channel, after Src Level</text>
 
   <!-- ================= THROUGH ================= -->
   <path class="wt" d="M300,796 V858 H396" marker-end="url(#at)"/>
@@ -206,12 +212,12 @@
 
 <div class="notes">
   <div>
-    <h2>The two lanes are the wrong way round</h2>
-    <p>In most vocoders you sing into the modulator. Here the <strong>live input is the carrier</strong> and the <strong>loaded samples are the modulator</strong> — so the input is always present in the output, shaped by whatever the samples are doing. With Interlace on, the right channel becomes the modulator and no file is needed.</p>
+    <h2>Left is the carrier, right is the modulator</h2>
+    <p>With Interlace on, the <strong>left channel is carried to the output</strong> and the <strong>right channel only shapes it</strong>. Measured: 220&nbsp;Hz left and 1&nbsp;kHz right gives 220&nbsp;Hz out and nothing at 1&nbsp;kHz; swap them and the output swaps too. Either channel alone gives silence. In most vocoders you sing into the modulator — here you play into the carrier.</p>
   </div>
   <div>
-    <h2>Through is on the modulator side</h2>
-    <p>It taps the modulator <em>before</em> the filter bank and adds it dry at the output. It never touches the carrier — moving it does not change the carrier level by a tenth of a decibel. At zero it is digital silence.</p>
+    <h2>Src Level scales both channels</h2>
+    <p>It is one gain on the stereo pair, before the split — so in Interlace mode it scales the carrier <em>and</em> the modulator. Halving it costs 12&nbsp;dB, not 6: six from the carrier and six more from the envelope that shapes it. Through, separately, taps the modulator before the bank and never touches the carrier.</p>
   </div>
   <div>
     <h2>The display is not a level meter</h2>
