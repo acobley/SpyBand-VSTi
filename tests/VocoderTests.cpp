@@ -106,6 +106,48 @@ static Run render (const Vocoder::Params& p, int frames, int blockSize,
 	return run;
 }
 
+/** A render with a probe signal of its own, and a settling period cut off
+    the front.
+
+    `fillInput`'s modulator is a 3 Hz sine, which suits the determinism
+    checks - where what the signal IS does not matter - and is useless for
+    measuring anything: less than one cycle fits in the buffer, so its rms
+    is not what a sine's rms should be, and its spectral leakage swamps a
+    Goertzel a couple of hundred hertz away. The through and carrier checks
+    below need a real modulator, so they bring their own. */
+static Run renderProbe (const Vocoder::Params& p, double carrierHz, double modulatorHz,
+                        int frames, double sampleRate, int settle)
+{
+	Vocoder v;
+	v.setSampleRate (sampleRate);
+	v.reset ();
+
+	const int block = 512;
+	std::vector<float> inL (block), inR (block), outL (block), outR (block);
+	const float* in[2] = { inL.data (), inR.data () };
+	float* out[2] = { outL.data (), outR.data () };
+
+	Run run;
+	for (int start = 0; start < frames; start += block)
+	{
+		for (int i = 0; i < block; ++i)
+		{
+			const double t = (start + i) / sampleRate;
+			inL[i] = static_cast<float> (0.6 * std::sin (2.0 * M_PI * carrierHz * t));
+			inR[i] = static_cast<float> (0.6 * std::sin (2.0 * M_PI * modulatorHz * t));
+		}
+		v.process (p, in, 2, out, 2, block);
+		if (start < settle)
+			continue;
+		for (int i = 0; i < block; ++i)
+		{
+			run.left.push_back (outL[i]);
+			run.right.push_back (outR[i]);
+		}
+	}
+	return run;
+}
+
 static bool identical (const Run& a, const Run& b)
 {
 	if (a.left.size () != b.left.size ())
@@ -349,6 +391,105 @@ int main ()
 			if (! std::isfinite (outL[i]) || ! std::isfinite (outR[i]))
 				finite = false;
 		chk (finite, "an infinity fed in one block was still there the next");
+	}
+
+	//--------------------------------------------------------------------
+	// THE THROUGH CONTROL
+	//
+	// Added after "I think it might be going through regardless of
+	// setting". It is not, and these say so three ways.
+	//
+	// The first is the decisive one: with the patch matrix EMPTY the
+	// vocoder can contribute nothing at all, so the through path is the
+	// only thing that can make a sound. At zero it must be digital
+	// silence - not "quiet", zero - and above it the level must be the
+	// modulator times Src Level times the control, with nothing else in it.
+	//--------------------------------------------------------------------
+	{
+		Vocoder::Params empty = musicalParams ();
+		for (double& cell : empty.patch)
+			cell = 0.0;
+
+		Vocoder::Params silent = empty;
+		silent.sampThroughLevel = 0.0;
+		const Run r0 = renderProbe (silent, 220.0, 1000.0, 16384, sr, 0);
+
+		bool allZero = true;
+		for (std::size_t i = 0; i < r0.left.size (); ++i)
+			if (r0.left[i] != 0.0f || r0.right[i] != 0.0f)
+				allZero = false;
+		chk (allZero, "Through at zero is not silent with an empty matrix");
+
+		// In interlace mode the through path is the right input channel,
+		// scaled by Src Level (control * 5, so unity at the default 0.2)
+		// and then by the control. Nothing else is in it - not the
+		// carrier, not the filters.
+		for (double level : { 0.25, 1.0 })
+		{
+			Vocoder::Params p2 = empty;
+			p2.sampThroughLevel = level;
+			const Run r2 = renderProbe (p2, 220.0, 1000.0, 16384, sr, 0);
+
+			double sum = 0.0;
+			for (float v : r2.left)
+				sum += double (v) * v;
+			const double rms = std::sqrt (sum / r2.left.size ());
+
+			const double expected = (0.6 / std::sqrt (2.0)) * (0.2 * 5.0) * level;
+			close (rms, expected, expected * 0.01,
+			       "the through path is not the modulator at the level asked for");
+		}
+	}
+
+	//--------------------------------------------------------------------
+	// And the other half of the same question: the CARRIER reaches the
+	// output through the VOCODER, not through the through path, so moving
+	// Through must not change how much of it comes out.
+	//
+	// This is what "going through regardless of setting" actually is. With
+	// Noise Override corrected (DEVIATION 5) the live input is the carrier,
+	// so it is always in the output - which it never was in the DXi,
+	// because its inverted test replaced the carrier with pink noise at the
+	// shipped default. The last check below is that difference, measured.
+	//--------------------------------------------------------------------
+	{
+		Vocoder::Params none = musicalParams ();
+		none.sampThroughLevel = 0.0;
+		Vocoder::Params full = musicalParams ();
+		full.sampThroughLevel = 1.0;
+
+		const Run rn = renderProbe (none, 220.0, 1000.0, 44100, sr, 8192);
+		const Run rf = renderProbe (full, 220.0, 1000.0, 44100, sr, 8192);
+
+		const double carrierNone = energyAt (rn.left, 220.0, sr);
+		const double carrierFull = energyAt (rf.left, 220.0, sr);
+
+		std::printf ("  carrier at 220 Hz: Through 0 %.1f dB, Through 1 %.1f dB\n",
+		             db (carrierNone), db (carrierFull));
+		chk (carrierNone > 0.0, "no carrier reaches the output at all");
+		close (db (carrierFull), db (carrierNone), 0.5,
+		       "Through changed how much carrier comes out - it must not touch it");
+
+		// Through DOES add the modulator, which is the whole of its job.
+		const double modNone = energyAt (rn.left, 1000.0, sr);
+		const double modFull = energyAt (rf.left, 1000.0, sr);
+		std::printf ("  modulator at 1 kHz: Through 0 %.1f dB, Through 1 %.1f dB\n",
+		             db (modNone), db (modFull));
+		chk (modFull > modNone * 4.0, "Through did not add the modulator");
+
+		// With the DXi's inverted sense the carrier was replaced by noise,
+		// so the input's own frequency all but vanished. This is the
+		// difference the fix makes, and it is why the input is audible now
+		// and was not then.
+		Vocoder::Params asShipped = none;
+		asShipped.noiseOverride = true;      // the DXi's default, corrected sense
+		const Run rs = renderProbe (asShipped, 220.0, 1000.0, 44100, sr, 8192);
+		const double carrierNoise = energyAt (rs.left, 220.0, sr);
+
+		std::printf ("  the DXi's shipped default put the carrier at %.1f dB\n",
+		             db (carrierNoise));
+		chk (carrierNoise < carrierNone * 0.2,
+		     "a noise carrier is not much quieter at the input's own frequency");
 	}
 
 	//--------------------------------------------------------------------

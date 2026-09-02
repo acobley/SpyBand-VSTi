@@ -317,6 +317,22 @@ Also asserted: two runs from `reset()` are identical; a patch cell open by
 1e-30 changes nothing while one open for real does; a disabled vocoder is
 its input bit for bit; an infinity fed in one block is gone by the next.
 
+**The through path**, added after a report that it might be passing signal
+regardless of its setting. The decisive check empties the patch matrix, so
+the vocoder can contribute nothing and the through path is the only thing
+that can make a sound: at zero it is **digital silence**, not "quiet", and
+above it the output is the modulator times Src Level times the control to
+within 1 %. The rest of that story is under DEVIATION 5 in §6.
+
+Both of those needed a probe signal of their own. `fillInput`'s modulator
+is a 3 Hz sine, which suits the determinism checks — where what the signal
+*is* does not matter — and is useless for measuring: less than one cycle
+fits in the buffer, so its rms is not a sine's rms, and its spectral
+leakage swamps a Goertzel a couple of hundred hertz away. The first version
+of these checks used it and failed on all four assertions, none of which
+was the code's fault. **A test signal chosen for one property is not
+automatically fit for another.**
+
 ---
 
 ## 5. Output level
@@ -429,6 +445,27 @@ when it reads "Noise Only". The two states were the wrong way round, and
 since the parameter defaults to 0 the **shipped default replaced the live
 input with pink noise**. Corrected; the states are named "Input Carrier"
 and "Noise Carrier" here.
+
+**This changes what the plug-in sounds like at its default**, and it is the
+first thing anyone notices. The parameter's default value is unchanged — it
+is still 0 — but 0 now means what the label always said it meant, so the
+live input is the carrier and is therefore always present in the output.
+In the DXi it was not, because 0 substituted noise. Measured, with a 220 Hz
+carrier in the left and a 1 kHz modulator in the right:
+
+| | 220 Hz (the carrier) |
+|---|---:|
+| the port, Through at 0 | −20.0 dB |
+| the port, Through at 1 | −20.0 dB |
+| the DXi's shipped default (noise carrier) | −45.5 dB |
+
+Two things to read off that. The carrier comes out **25 dB louder than it
+did in the DXi** — which is the fix working, not a leak. And the Through
+control does not move it by so much as a tenth of a decibel, because the
+carrier reaches the output through the vocoder and Through is not on that
+path at all. What Through does is add the modulator: at 1 kHz it goes from
+−93.3 dB to −10.5 dB across the control's travel, which is the whole of its
+job. `VocoderTests` asserts all four of those numbers.
 
 ### The sample enables were never written
 
