@@ -301,6 +301,13 @@ below the fundamental, against 65 dB below with a genuine stereo source.
 Two columns side by side answer "are these two channels actually different
 audio?" at a glance, which nothing else on the panel does.
 
+They tap **immediately after the split and before either level control**,
+which is the whole point: their reading cannot be moved by Src Level or Wav
+Level, so two columns that track each other mean the channels genuinely
+carry the same audio rather than merely being set to the same gain.
+`VocoderTests` sweeps both controls across their range and asserts neither
+moves either column.
+
 Scale is 0 dBFS down to −60, twenty segments, green with amber for the last
 9 dB and red for the last 3. Instant attack, gentle release, and a held
 peak that slides down to meet the bar after about a second — a meter that
@@ -597,10 +604,8 @@ At the factory default the change is inaudible — Src Level defaults to
 modulator is 1.00001. It only bites once the control is moved, which is
 exactly when the old behaviour was most confusing.
 
-The two LED columns follow the same split: the left column reads its
-channel after Src Level, the right after Wav Level when Interlace has made
-it the modulator, and after Src Level when it is simply the other half of
-the carrier.
+The LED columns sit ahead of both controls, so they are unaffected by this
+and by anything else on the panel — see §3.
 
 ### Smaller ones
 

@@ -659,10 +659,6 @@ void Vocoder::process (const Params& params,
 	const bool wasEnabled = mPrevious.enable;
 	if (! params.enable && ! wasEnabled)
 	{
-		const double gain = params.inLevel * 5.0 + 0.00001;
-		const double gainR = params.interlaced
-			? (params.sampLevel * 5.0 + 0.00001)
-			: gain;
 		float peakL = 0.0f, peakR = 0.0f;
 		for (int f = 0; f < frames; ++f)
 		{
@@ -672,11 +668,11 @@ void Vocoder::process (const Params& params,
 			if (outR)
 				outR[f] = static_cast<float> (r);
 
-			// Meter what the taps WOULD see, so the columns keep moving
-			// while the plug-in is bypassed - which is when someone is
-			// most likely looking at them to work out what is arriving.
-			peakL = std::max (peakL, static_cast<float> (std::fabs (l * gain)));
-			peakR = std::max (peakR, static_cast<float> (std::fabs (r * gainR)));
+			// The columns keep moving while the plug-in is bypassed,
+			// which is when someone is most likely looking at them to
+			// work out what is arriving.
+			peakL = std::max (peakL, static_cast<float> (std::fabs (l)));
+			peakR = std::max (peakR, static_cast<float> (std::fabs (r)));
 		}
 		mSrcPeakL.store (peakL, std::memory_order_relaxed);
 		mSrcPeakR.store (peakR, std::memory_order_relaxed);
@@ -831,13 +827,14 @@ void Vocoder::process (const Params& params,
 		double srcR = (dryR + ditherNoise ())
 		            * (params.interlaced ? 1.0 : inLevel.v);
 
-		// Each column shows its channel after whatever control governs
-		// it: the left after Src Level, and the right after Wav Level
-		// when Interlace has made it the modulator, or after Src Level
-		// when it is simply the other half of the carrier.
-		peakL = std::max (peakL, static_cast<float> (std::fabs (srcL)));
-		peakR = std::max (peakR, static_cast<float> (
-			std::fabs (srcR) * (params.interlaced ? sampLevel.v : 1.0)));
+		// The columns tap the two channels immediately after the split
+		// and BEFORE either level control, so they show what is arriving
+		// and nothing else. That is what makes them a diagnostic: their
+		// reading does not move when Src Level or Wav Level does, so two
+		// columns that track each other mean the two channels really are
+		// the same audio - which is the failure they exist to catch.
+		peakL = std::max (peakL, static_cast<float> (std::fabs (dryL)));
+		peakR = std::max (peakR, static_cast<float> (std::fabs (dryR)));
 
 		const double pink = noiseValue () * noiseLevel.v;
 

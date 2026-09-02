@@ -154,10 +154,13 @@ public:
 	    audio thread. */
 	int meter (double* out) const;
 
-	/** Peak of the two taps the panel meters, taken immediately after Src
-	    Level and before anything else touches them: [0] is the left - the
-	    carrier - and [1] the right, which is the modulator with Interlace
-	    on. Over the last block.
+	/** Peak of the two input channels, taken immediately after the split
+	    and BEFORE either level control: [0] is the left and [1] the right,
+	    over the last block.
+
+	    Deliberately ahead of Src Level and Wav Level, so the reading does
+	    not move when a control does and two columns that track each other
+	    mean the channels genuinely carry the same audio.
 
 	    Same threading story as the band meter: two atomics written by the
 	    audio thread, read by the editor's timer. */

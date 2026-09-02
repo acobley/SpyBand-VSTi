@@ -520,33 +520,40 @@ int main ()
 		float peakL = 0.f, peakR = 0.f;
 		v.inputPeaks (peakL, peakR);
 
-		// Src Level defaults to 0.2, which the DSP takes as 0.2 * 5 = unity.
+		// The columns tap after the split and BEFORE either level
+		// control, so they read the raw input amplitudes.
 		close (peakL, 0.5, 0.01, "the left column does not read the left input");
 		close (peakR, 0.25, 0.01, "the right column does not read the right input");
 
-		// DEVIATION 6: with Interlace on the controls are SPLIT. Halving
-		// Src Level halves the left and leaves the right alone; halving
-		// Wav Level does the opposite. If either of these ever fails,
-		// Src Level has crept back onto the modulator.
-		Vocoder::Params quiet = p2;
-		quiet.inLevel = 0.1;
-		Vocoder v2;
-		v2.setSampleRate (sr);
-		v2.reset ();
-		v2.process (quiet, in, 2, out, 2, 2048);
-		v2.inputPeaks (peakL, peakR);
-		close (peakL, 0.25, 0.01, "Src Level does not scale the left column");
-		close (peakR, 0.25, 0.01, "Src Level still reaches the right channel");
+		// And neither level control may move them. If either of these
+		// fails a control has crept in front of the tap, and the columns
+		// have stopped being a diagnostic - two channels carrying the
+		// same audio would no longer read the same.
+		for (double src : { 0.05, 0.5, 1.0 })
+		{
+			Vocoder::Params moved = p2;
+			moved.inLevel = src;
+			Vocoder vv;
+			vv.setSampleRate (sr);
+			vv.reset ();
+			vv.process (moved, in, 2, out, 2, 2048);
+			vv.inputPeaks (peakL, peakR);
+			close (peakL, 0.5, 0.01, "Src Level moved the left column");
+			close (peakR, 0.25, 0.01, "Src Level moved the right column");
+		}
 
-		Vocoder::Params quietR = p2;
-		quietR.sampLevel = 0.1;
-		Vocoder v2b;
-		v2b.setSampleRate (sr);
-		v2b.reset ();
-		v2b.process (quietR, in, 2, out, 2, 2048);
-		v2b.inputPeaks (peakL, peakR);
-		close (peakL, 0.5, 0.01, "Wav Level reaches the left channel");
-		close (peakR, 0.125, 0.01, "Wav Level does not scale the right column");
+		for (double wav : { 0.05, 0.5, 1.0 })
+		{
+			Vocoder::Params moved = p2;
+			moved.sampLevel = wav;
+			Vocoder vv;
+			vv.setSampleRate (sr);
+			vv.reset ();
+			vv.process (moved, in, 2, out, 2, 2048);
+			vv.inputPeaks (peakL, peakR);
+			close (peakL, 0.5, 0.01, "Wav Level moved the left column");
+			close (peakR, 0.25, 0.01, "Wav Level moved the right column");
+		}
 
 		// THE POINT OF THEM: a mono source moves both columns the same,
 		// which is what says "these two channels are the same audio" -

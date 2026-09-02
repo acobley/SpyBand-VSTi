@@ -16,6 +16,11 @@ than to read:
 * the **band display taps the modulator envelopes before Env Level** and
   weights them by the patch matrix's row sums, so it is not a level meter.
 
+Everything that only observes the signal — the two input meters and the
+band display — is drawn as a **tap**: dashed box, dotted feed, hanging off
+a wire rather than sitting in it. Nothing drawn that way is in the audio
+path.
+
 **panel-preview.png** — the editor's layout, rendered by
 `tools/preview-panel.py` straight from the dialog units in the DXi's
 `SpyBand.rc`. It is not a screenshot and it is not a mock-up: the script
