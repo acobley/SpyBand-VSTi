@@ -1,0 +1,221 @@
+<title>SpyBand signal path</title>
+<style>
+  body { margin: 0; background: #f7f7f5; color: #1a1a1a;
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .page { width: 1240px; margin: 0 auto; padding: 28px 0 40px; }
+  h1 { font-size: 21px; margin: 0 0 2px; font-weight: 650; letter-spacing: -0.01em; }
+  .sub { color: #6b6b66; margin: 0 0 14px; font-size: 13px; }
+  .notes { margin: 24px 0 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .notes h2 { font-size: 12.5px; margin: 0 0 5px; letter-spacing: 0.03em; text-transform: uppercase; color: #6b6b66; font-weight: 650; }
+  .notes p { margin: 0; font-size: 13px; color: #2c2c2a; }
+  code { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: #ececE8; padding: 1px 4px; border-radius: 3px; }
+</style>
+
+<div class="page">
+<h1>SpyBand — signal path</h1>
+<p class="sub">Transcribed from <code>CSpyBand::Process</code>. The carrier is the live input; the modulator is the loaded samples, or the right input channel with Interlace on.</p>
+
+<svg viewBox="0 0 1240 900" width="1240" height="900" role="img"
+     aria-label="Signal flow diagram of the SpyBand vocoder. The live input is scaled by Src Level and becomes the carrier, passing through a bandpass bank into the columns of a 22 by 22 patch matrix. The loaded samples, or the right input channel when Interlace is on, become the modulator, passing through an identical bank and envelope followers into the rows of the matrix. The matrix output is summed with the Through path and scaled by Output Trim.">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#6a6a62"/>
+    </marker>
+    <marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#2f6296"/>
+    </marker>
+    <marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#8a6410"/>
+    </marker>
+    <marker id="an" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#6b4a92"/>
+    </marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#3f7040"/>
+    </marker>
+    <style>
+      .bx   { rx: 7; ry: 7; stroke-width: 1.4; }
+      .car  { fill: #e4eef9; stroke: #2f6296; }
+      .mod  { fill: #faf0d8; stroke: #8a6410; }
+      .noi  { fill: #efe7f7; stroke: #6b4a92; }
+      .out  { fill: #e6efe6; stroke: #3f7040; }
+      .neu  { fill: #ededea; stroke: #6f6f68; }
+      .t    { font: 600 14px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #16161a; }
+      .s    { font: 11.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #5e5e58; }
+      .lane { font: 700 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; letter-spacing: .09em; }
+      .note { font: italic 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #74746c; }
+      .wire { fill: none; stroke: #6a6a62; stroke-width: 1.6; }
+      .wc   { fill: none; stroke: #2f6296; stroke-width: 1.9; }
+      .wm   { fill: none; stroke: #8a6410; stroke-width: 1.9; }
+      .wn   { fill: none; stroke: #6b4a92; stroke-width: 1.6; }
+      .wt   { fill: none; stroke: #3f7040; stroke-width: 1.7; stroke-dasharray: 6 4; }
+    </style>
+  </defs>
+
+  <!-- ================= CARRIER LANE ================= -->
+  <text class="lane" x="30" y="52" fill="#2f6296">CARRIER — the live input, and what you hear the shape of</text>
+
+  <rect class="bx neu" x="30" y="90" width="112" height="64"/>
+  <text class="t" x="86" y="116" text-anchor="middle">Audio In</text>
+  <text class="s" x="86" y="134" text-anchor="middle">L / R</text>
+
+  <rect class="bx car" x="176" y="90" width="126" height="64"/>
+  <text class="t" x="239" y="114" text-anchor="middle">Src Level</text>
+  <text class="s" x="239" y="132" text-anchor="middle">control × 5</text>
+  <text class="s" x="239" y="147" text-anchor="middle">unity at 20 %</text>
+  <path class="wc" d="M142,122 H176" marker-end="url(#ac)"/>
+
+  <circle cx="345" cy="122" r="14" fill="#efe7f7" stroke="#6b4a92" stroke-width="1.4"/>
+  <text class="t" x="345" y="128" text-anchor="middle" font-size="16">+</text>
+  <path class="wc" d="M302,122 H331" marker-end="url(#ac)"/>
+
+  <rect class="bx car" x="402" y="90" width="152" height="64"/>
+  <text class="t" x="478" y="114" text-anchor="middle">Noise Override</text>
+  <text class="s" x="478" y="132" text-anchor="middle">replaces the carrier</text>
+  <text class="s" x="478" y="147" text-anchor="middle">entirely, either mode</text>
+  <path class="wc" d="M359,122 H402" marker-end="url(#ac)"/>
+
+  <rect class="bx car" x="604" y="80" width="182" height="84"/>
+  <text class="t" x="695" y="106" text-anchor="middle">Carrier bank</text>
+  <text class="s" x="695" y="124" text-anchor="middle">9 / 12 / 18 / 22 bandpass</text>
+  <text class="s" x="695" y="139" text-anchor="middle">Bottom Freq · Top Freq</text>
+  <text class="s" x="695" y="154" text-anchor="middle">Resonance · Filter Slopes</text>
+  <path class="wc" d="M554,122 H604" marker-end="url(#ac)"/>
+  <text class="note" x="695" y="184" text-anchor="middle">Stereo off sums L + R and vocodes once</text>
+
+  <path class="wc" d="M786,122 H818 V318" marker-end="url(#ac)"/>
+  <text class="s" x="830" y="232" fill="#2f6296">one band per COLUMN</text>
+
+  <!-- ================= PINK NOISE ================= -->
+  <rect class="bx noi" x="330" y="258" width="200" height="84"/>
+  <text class="t" x="430" y="282" text-anchor="middle">Pink noise</text>
+  <text class="s" x="430" y="300" text-anchor="middle">white → 3-pole pink →</text>
+  <text class="s" x="430" y="315" text-anchor="middle">high pass (Noise HighPass)</text>
+  <text class="s" x="430" y="331" text-anchor="middle">× Unvoiced Noise Level</text>
+  <text class="note" x="430" y="362" text-anchor="middle">added to the carrier while unvoiced — sample mode only</text>
+
+  <path class="wn" d="M380,258 V204 H345 V138" marker-end="url(#an)"/>
+  <path class="wn" d="M490,258 V156" marker-end="url(#an)"/>
+
+  <!-- ================= VOICED DETECTOR ================= -->
+  <rect class="bx noi" x="330" y="424" width="250" height="126"/>
+  <text class="t" x="455" y="450" text-anchor="middle">Voiced / unvoiced detector</text>
+  <text class="s" x="455" y="471" text-anchor="middle">600 Hz low pass → envelope</text>
+  <text class="s" x="455" y="487" text-anchor="middle">5800 Hz high pass → envelope</text>
+  <text class="s" x="455" y="506" text-anchor="middle">voiced when low × Sensitivity &gt; high</text>
+  <text class="s" x="455" y="525" text-anchor="middle">opens an ADSR on the noise while</text>
+  <text class="s" x="455" y="540" text-anchor="middle">the modulator is unvoiced</text>
+
+  <path class="wn" d="M455,424 V344" marker-end="url(#an)"/>
+  <path class="wm" d="M530,740 V552" marker-end="url(#am)"/>
+
+  <!-- ================= PATCH MATRIX ================= -->
+  <text class="t" x="815" y="286" text-anchor="middle">Patch matrix  22 × 22</text>
+  <text class="s" x="815" y="304" text-anchor="middle">row = modulator band · column = carrier band</text>
+
+  <rect x="700" y="320" width="230" height="230" rx="7" fill="#fbfbf9" stroke="#43433c" stroke-width="1.6"/>
+  <g stroke="#43433c22" stroke-width="1">
+    <path d="M723,320 V550 M746,320 V550 M769,320 V550 M792,320 V550 M815,320 V550 M838,320 V550 M861,320 V550 M884,320 V550 M907,320 V550"/>
+    <path d="M700,343 H930 M700,366 H930 M700,389 H930 M700,412 H930 M700,435 H930 M700,458 H930 M700,481 H930 M700,504 H930 M700,527 H930"/>
+  </g>
+  <g fill="#c0392b">
+    <rect x="701" y="321" width="21" height="21"/><rect x="724" y="344" width="21" height="21"/>
+    <rect x="747" y="367" width="21" height="21"/><rect x="770" y="390" width="21" height="21"/>
+    <rect x="793" y="413" width="21" height="21"/><rect x="816" y="436" width="21" height="21"/>
+    <rect x="839" y="459" width="21" height="21"/><rect x="862" y="482" width="21" height="21"/>
+    <rect x="885" y="505" width="21" height="21"/><rect x="908" y="528" width="21" height="21"/>
+  </g>
+  <text class="note" x="944" y="580">the diagonal alone</text>
+  <text class="note" x="944" y="596">is a plain vocoder</text>
+
+  <path class="wm" d="M1022,710 V620 H860 V552" marker-end="url(#am)"/>
+  <text class="s" x="874" y="640" fill="#8a6410">one band per ROW</text>
+
+  <!-- ================= OUTPUT ================= -->
+  <rect class="bx out" x="1010" y="330" width="122" height="54"/>
+  <text class="t" x="1071" y="351" text-anchor="middle">+ Through</text>
+  <text class="s" x="1071" y="369" text-anchor="middle">the modulator, dry</text>
+
+  <rect class="bx out" x="1010" y="410" width="122" height="54"/>
+  <text class="t" x="1071" y="431" text-anchor="middle">Output Trim</text>
+  <text class="s" x="1071" y="449" text-anchor="middle">−60 … 0 dB</text>
+
+  <rect class="bx out" x="1010" y="490" width="122" height="54"/>
+  <text class="t" x="1071" y="511" text-anchor="middle">Out</text>
+  <text class="s" x="1071" y="529" text-anchor="middle">L / R</text>
+
+  <path class="wire" d="M930,357 H1010" marker-end="url(#a)"/>
+  <path class="wire" d="M1071,384 V410" marker-end="url(#a)"/>
+  <path class="wire" d="M1071,464 V490" marker-end="url(#a)"/>
+
+  <!-- ================= BAND DISPLAY TAP ================= -->
+  <rect class="bx neu" x="596" y="600" width="168" height="58" stroke-dasharray="5 3"/>
+  <text class="t" x="680" y="623" text-anchor="middle">Band display</text>
+  <text class="s" x="680" y="641" text-anchor="middle">× matrix ROW sums</text>
+  <path class="wire" d="M800,700 V629 H766" marker-end="url(#a)"/>
+  <text class="note" x="680" y="676" text-anchor="middle">tapped BEFORE Env Level</text>
+
+  <!-- ================= MODULATOR LANE ================= -->
+  <text class="lane" x="244" y="694" fill="#8a6410">MODULATOR — the samples, and what does the shaping</text>
+
+  <rect class="bx mod" x="30" y="778" width="176" height="58"/>
+  <text class="t" x="118" y="801" text-anchor="middle">Samples 1–5</text>
+  <text class="s" x="118" y="819" text-anchor="middle">.wav, five slots</text>
+
+  <rect class="bx mod" x="244" y="710" width="112" height="86"/>
+  <text class="t" x="300" y="740" text-anchor="middle">Interlace</text>
+  <text class="s" x="300" y="759" text-anchor="middle">off: samples</text>
+  <text class="s" x="300" y="775" text-anchor="middle">on: In R</text>
+
+  <rect class="bx mod" x="396" y="722" width="112" height="60"/>
+  <text class="t" x="452" y="746" text-anchor="middle">Wav Level</text>
+  <text class="s" x="452" y="764" text-anchor="middle">control × 5</text>
+
+  <rect class="bx mod" x="556" y="712" width="162" height="80"/>
+  <text class="t" x="637" y="740" text-anchor="middle">Modulator bank</text>
+  <text class="s" x="637" y="758" text-anchor="middle">the same coefficients</text>
+  <text class="s" x="637" y="774" text-anchor="middle">as the carrier bank</text>
+
+  <rect class="bx mod" x="762" y="712" width="162" height="80"/>
+  <text class="t" x="843" y="740" text-anchor="middle">Env followers</text>
+  <text class="s" x="843" y="758" text-anchor="middle">Env Attack / Release</text>
+  <text class="s" x="843" y="774" text-anchor="middle">ceiling 5.0</text>
+
+  <rect class="bx mod" x="966" y="722" width="112" height="60"/>
+  <text class="t" x="1022" y="746" text-anchor="middle">× Env Level</text>
+  <text class="s" x="1022" y="764" text-anchor="middle">control × 10</text>
+
+  <path class="wm" d="M206,807 H300 V796" marker-end="url(#am)"/>
+  <path class="wm" d="M356,752 H396" marker-end="url(#am)"/>
+  <path class="wm" d="M508,752 H556" marker-end="url(#am)"/>
+  <path class="wm" d="M718,752 H762" marker-end="url(#am)"/>
+  <path class="wm" d="M924,752 H966" marker-end="url(#am)"/>
+
+  <!-- In R taps off Src Level and runs down the clear left channel -->
+  <path class="wm" d="M200,156 V753 H244" marker-end="url(#am)"/>
+  <text class="note" x="192" y="470" text-anchor="middle" transform="rotate(-90 192 470)">In R, after Src Level</text>
+
+  <!-- ================= THROUGH ================= -->
+  <path class="wt" d="M300,796 V858 H396" marker-end="url(#at)"/>
+  <rect class="bx out" x="396" y="832" width="112" height="52" stroke-dasharray="5 3"/>
+  <text class="t" x="452" y="854" text-anchor="middle">× Through</text>
+  <text class="s" x="452" y="872" text-anchor="middle">0 = digital silence</text>
+  <path class="wt" d="M508,858 H1186 V357 H1134" marker-end="url(#at)"/>
+  <text class="note" x="560" y="850">carries the MODULATOR to the output, never the carrier</text>
+</svg>
+
+<div class="notes">
+  <div>
+    <h2>The two lanes are the wrong way round</h2>
+    <p>In most vocoders you sing into the modulator. Here the <strong>live input is the carrier</strong> and the <strong>loaded samples are the modulator</strong> — so the input is always present in the output, shaped by whatever the samples are doing. With Interlace on, the right channel becomes the modulator and no file is needed.</p>
+  </div>
+  <div>
+    <h2>Through is on the modulator side</h2>
+    <p>It taps the modulator <em>before</em> the filter bank and adds it dry at the output. It never touches the carrier — moving it does not change the carrier level by a tenth of a decibel. At zero it is digital silence.</p>
+  </div>
+  <div>
+    <h2>The display is not a level meter</h2>
+    <p>It taps the modulator envelopes <em>before</em> Env Level and multiplies each by the sum of that row's open matrix cells. An empty matrix reads flat however loud the input, and opening more cells in one row raises that band without changing what you hear.</p>
+  </div>
+</div>
+</div>

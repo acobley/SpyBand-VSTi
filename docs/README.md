@@ -1,5 +1,21 @@
 # docs
 
+**signal-path.html / signal-path.png** — the routing, transcribed from
+`CSpyBand::Process` rather than drawn from memory. Blue is the carrier,
+amber the modulator, purple the noise, dashed green the Through path. The
+HTML is the source; the PNG is rendered from it with headless Chromium, so
+the picture stays regenerable rather than replaceable.
+
+It is worth having because three things about this plug-in's routing are
+the opposite of what the names suggest, and all three are easier to see
+than to read:
+
+* the **live input is the carrier** and the **samples are the modulator**,
+  which is the reverse of the vocoder everyone has used;
+* **Through is on the modulator side** — it never touches the carrier;
+* the **band display taps the modulator envelopes before Env Level** and
+  weights them by the patch matrix's row sums, so it is not a level meter.
+
 **panel-preview.png** — the editor's layout, rendered by
 `tools/preview-panel.py` straight from the dialog units in the DXi's
 `SpyBand.rc`. It is not a screenshot and it is not a mock-up: the script
