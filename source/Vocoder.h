@@ -137,11 +137,25 @@ public:
 	/** The band envelopes, weighted by the patch matrix exactly as
 	    CSpyBand::GetEnvData did. Writes `bands` values, or 2 * `bands`
 	    when the last block ran in stereo, and returns how many. `out`
-	    should hold 2 * kMaxBands. */
+	    should hold 2 * kMaxBands.
+
+	    Called at the END of process(), on the audio thread, into the
+	    snapshot below. Do not call it from anywhere else: it walks mCells,
+	    which process() clears and refills every block. */
 	int envelopeData (double* out) const;
 
+	/** The snapshot the editor reads. Copies at most 2 * kMaxBands values
+	    and returns how many were written.
+
+	    Safe to call from the UI thread while the audio thread is running:
+	    it reads a fixed array and an atomic count, never a container. A
+	    torn read shows one meter frame made of two, which is invisible at
+	    thirty frames a second and is the whole cost of not locking the
+	    audio thread. */
+	int meter (double* out) const;
+
 	/** The voiced detector's last verdict. */
-	bool voicedState () const { return mVoicedStore; }
+	bool voicedState () const { return mVoicedStore.load (std::memory_order_relaxed); }
 
 	/** True while slot `slot` is enabled AND has a file loaded - the
 	    indicator lamp on each file button. */
@@ -224,8 +238,13 @@ private:
 
 	Adsr   mNoiseEnvelope;
 	bool   mNoiseEnvTriggered = false;
-	bool   mVoicedStore = false;
+	std::atomic<bool> mVoicedStore { false };
 	double mVoicedSensitivity = 0.2;
+
+	// The meter snapshot, written at the end of every block and read by
+	// the editor's timer.
+	double mMeter[2 * kMaxBands] = { 0.0 };
+	std::atomic<int> mMeterCount { 0 };
 
 	// What the current coefficients were computed FROM, so they are only
 	// recomputed when one of them moves - as the DXi did.

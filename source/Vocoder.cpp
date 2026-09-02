@@ -165,7 +165,8 @@ void Vocoder::reset ()
 
 	mLowEnvelope = 0.0;
 	mHighEnvelope = 0.0;
-	mVoicedStore = false;
+	mVoicedStore.store (false, std::memory_order_relaxed);
+	mMeterCount.store (0, std::memory_order_release);
 	mNoiseEnvTriggered = false;
 
 	mNoiseEnvelope.reset ();
@@ -559,9 +560,10 @@ double Vocoder::voicedDetection (double in)
 	const double lowLevel = lowEnvFollow (lowPass (in));
 	const double highLevel = highEnvFollow (highPass (in));
 
-	mVoicedStore = ((lowLevel * mVoicedSensitivity) > highLevel);
+	const bool voiced = ((lowLevel * mVoicedSensitivity) > highLevel);
+	mVoicedStore.store (voiced, std::memory_order_relaxed);
 
-	if (! mVoicedStore)
+	if (! voiced)
 		return highLevel;
 	return 0.0;
 }
@@ -974,6 +976,22 @@ void Vocoder::process (const Params& params,
 	mLastBlockBands = bands;
 	mPrevious = params;
 	mHavePrevious = true;
+
+	// The editor's meter. Taken here, on the audio thread, because
+	// envelopeData walks mCells - which the next block will clear.
+	const int count = envelopeData (mMeter);
+	mMeterCount.store (count, std::memory_order_release);
+}
+
+//------------------------------------------------------------------------
+int Vocoder::meter (double* out) const
+{
+	if (out == nullptr)
+		return 0;
+	const int count = mMeterCount.load (std::memory_order_acquire);
+	for (int i = 0; i < count; ++i)
+		out[i] = mMeter[i];
+	return count;
 }
 
 //------------------------------------------------------------------------

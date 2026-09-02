@@ -59,11 +59,10 @@ const ParamDef kParams[kNumScalarParams] =
 	{ kNoiseHighFreq,    "Noise High Pass Freq",   "%",  ParamType::Float,  0.0, 100.0,   1.0,  0.0,  1.0, 0, false },
 
 	// NEW - see the OUTPUT TRIM note in BandLayout.h. Its plain range IS
-	// decibels, so the host shows "-20 dB" without a conversion, and its
-	// units field is empty because toString appends the "dB" itself: a
-	// value string that carries its own unit AND declares one renders
-	// "-20 dB dB".
-	{ kOutputTrim,       "Output Trim",            "",   ParamType::Float, -60.0,  0.0, -20.0,  0.0,  1.0, 0, true  },
+	// decibels, so a plain RangeParameter renders "-20.00 dB" with no
+	// custom toString to get wrong, and no risk of the value string and
+	// the units field both carrying a "dB".
+	{ kOutputTrim,       "Output Trim",            "dB", ParamType::Float, -60.0,  0.0, -20.0,  0.0,  1.0, 0, true  },
 };
 
 //------------------------------------------------------------------------

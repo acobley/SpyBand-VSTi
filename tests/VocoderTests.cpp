@@ -1,0 +1,392 @@
+//------------------------------------------------------------------------
+// SpyBand - vocoder checks
+//
+// The DSP holds no SDK type, so this needs no SDK, no host and no window
+// server:
+//
+//   c++ -std=c++17 -O2 -Wall -Wextra -I../source ../source/Vocoder.cpp
+//       ../source/Adsr.cpp ../source/WavFile.cpp ../source/BandLayout.cpp
+//       VocoderTests.cpp -o vocoder-tests && ./vocoder-tests
+//
+// Each of the deliberate changes to the DXi's behaviour is pinned here,
+// and each was run against the ORIGINAL arithmetic first to watch it fail -
+// where "the original" is written out in the test rather than described,
+// so the two can be compared rather than taken on trust.
+//------------------------------------------------------------------------
+
+#include "BandLayout.h"
+#include "Vocoder.h"
+
+#include <cmath>
+#include <cstdio>
+#include <algorithm>
+#include <limits>
+#include <vector>
+
+using namespace SpyBand;
+
+static int fails = 0;
+
+static void chk (bool ok, const char* what)
+{
+	if (! ok)
+	{
+		std::printf ("  FAIL: %s\n", what);
+		++fails;
+	}
+}
+
+static void close (double a, double b, double tol, const char* what)
+{
+	if (! (std::fabs (a - b) <= tol))
+	{
+		std::printf ("  FAIL: %s (%.10g vs %.10g)\n", what, a, b);
+		++fails;
+	}
+}
+
+//------------------------------------------------------------------------
+// A run of the vocoder, for comparing runs against each other.
+//------------------------------------------------------------------------
+struct Run
+{
+	std::vector<float> left, right;
+	double peak = 0.0;
+};
+
+static Vocoder::Params musicalParams ()
+{
+	Vocoder::Params p;
+	p.interlaced = true;          // right channel modulates left, no file needed
+	p.freq = 0.50;                // bottom band near 100 Hz
+	p.freqSpread = 0.75;          // top band near 1.5 kHz
+	p.outputTrim = 1.0;           // the DXi's own staging, so nothing is hidden
+	for (int i = 0; i < kMaxBands; ++i)
+		p.patch[i * kMaxBands + i] = 1.0;
+	return p;
+}
+
+/** Deterministic test signal: a tone in the left (carrier) and a slower
+    tone in the right (modulator). No noise, so two runs are comparable. */
+static void fillInput (std::vector<float>& l, std::vector<float>& r,
+                       int frames, double sampleRate)
+{
+	l.resize (frames);
+	r.resize (frames);
+	for (int i = 0; i < frames; ++i)
+	{
+		const double t = i / sampleRate;
+		l[i] = static_cast<float> (0.6 * std::sin (2.0 * M_PI * 220.0 * t));
+		r[i] = static_cast<float> (0.6 * std::sin (2.0 * M_PI * 3.0 * t));
+	}
+}
+
+static Run render (const Vocoder::Params& p, int frames, int blockSize,
+                   double sampleRate)
+{
+	Vocoder v;
+	v.setSampleRate (sampleRate);
+	v.reset ();
+
+	std::vector<float> inL, inR;
+	fillInput (inL, inR, frames, sampleRate);
+
+	Run run;
+	run.left.assign (frames, 0.0f);
+	run.right.assign (frames, 0.0f);
+
+	for (int start = 0; start < frames; start += blockSize)
+	{
+		const int n = (start + blockSize <= frames) ? blockSize : (frames - start);
+		const float* in[2] = { inL.data () + start, inR.data () + start };
+		float* out[2] = { run.left.data () + start, run.right.data () + start };
+		v.process (p, in, 2, out, 2, n);
+	}
+	run.peak = v.peakSinceLastCall ();
+	return run;
+}
+
+static bool identical (const Run& a, const Run& b)
+{
+	if (a.left.size () != b.left.size ())
+		return false;
+	for (std::size_t i = 0; i < a.left.size (); ++i)
+		if (a.left[i] != b.left[i] || a.right[i] != b.right[i])
+			return false;
+	return true;
+}
+
+/** Energy at `hz`, over the whole buffer, by Goertzel. */
+static double energyAt (const std::vector<float>& x, double hz, double sampleRate)
+{
+	const double w = 2.0 * M_PI * hz / sampleRate;
+	const double coeff = 2.0 * std::cos (w);
+	double s1 = 0.0, s2 = 0.0;
+	for (float v : x)
+	{
+		const double s0 = v + coeff * s1 - s2;
+		s2 = s1;
+		s1 = s0;
+	}
+	return std::sqrt (s1 * s1 + s2 * s2 - coeff * s1 * s2) / x.size ();
+}
+
+static double db (double x) { return (x <= 1e-30) ? -300.0 : 20.0 * std::log10 (x); }
+
+//------------------------------------------------------------------------
+int main ()
+{
+	const double sr = 44100.0;
+
+	//--------------------------------------------------------------------
+	// DEVIATION 3: the hard-coded 44100.
+	//
+	// Every filter and envelope constant in the DXi divided by a literal
+	// 44100 whatever the host was running at, so a band whose CENTRE was
+	// computed as 500 Hz was realised at 500 * rate / 44100 - over an
+	// octave up at 96 k. The port passes the real rate.
+	//
+	// `oldRealisedHz` is the original's behaviour, written out. At 44100
+	// the two must agree to the last bit; anywhere else the old one moves
+	// and the new one does not.
+	//--------------------------------------------------------------------
+	const auto oldRealisedHz = [] (double freq, double spread, int bands,
+	                               int index, double actualRate)
+	{
+		// The DXi computed the layout against 44100 and then used those
+		// numbers as if they were radians at the real rate.
+		const double nominal = bandCentreHz (freq, spread, bands, index, 44100.0);
+		// Written as a ratio so that at 44100 it is a multiplication by
+		// exactly 1.0, and the bit-identical claim below means what it says.
+		return nominal * (actualRate / 44100.0);
+	};
+
+	for (int i = 0; i < 9; ++i)
+	{
+		const double now = bandCentreHz (0.5, 0.75, 9, i, 44100.0);
+		chk (now == oldRealisedHz (0.5, 0.75, 9, i, 44100.0),
+		     "at 44100 the fix is not bit-identical to the DXi");
+
+		const double at48 = bandCentreHz (0.5, 0.75, 9, i, 48000.0);
+		close (at48, now, 1e-9, "the band moved when the sample rate changed");
+
+		const double old48 = oldRealisedHz (0.5, 0.75, 9, i, 48000.0);
+		chk (std::fabs (old48 - now) > now * 0.05,
+		     "the 48 k check would pass against the old code too");
+
+		const double old96 = oldRealisedHz (0.5, 0.75, 9, i, 96000.0);
+		chk (old96 > now * 2.0, "the DXi's 96 k error was not over an octave");
+	}
+
+	// The top of the range is clamped to Nyquist, so the layout at a high
+	// rate is allowed to differ where the DXi's clamp was biting.
+	chk (bandCentreHz (0.0, 1.0, 9, 8, 44100.0) < 22050.0, "a band sits above Nyquist");
+	chk (bandCentreHz (0.0, 1.0, 9, 8, 96000.0) >= bandCentreHz (0.0, 1.0, 9, 8, 44100.0),
+	     "the wider Nyquist at 96 k did not free the top band");
+
+	// The noise high pass, and the envelope times.
+	close (noiseHighPassHz (0.01, 44100.0), 110.25, 1e-9, "noise corner at the default");
+	close (noiseHighPassHz (0.01, 96000.0), 240.0, 1e-9, "noise corner does not follow the rate");
+	close (envAttackMs (0.05), 13.5, 1e-12, "attack default");
+	close (envReleaseMs (0.05), 6.0, 1e-12, "release default");
+
+	//--------------------------------------------------------------------
+	// Determinism, and block-size invariance.
+	//
+	// The second is the real test of the ramps added in place of the DXi's
+	// per-block parameter read: with a static setting a ramp's increment
+	// is zero, so splitting a run into different block sizes must not
+	// change one sample of it. It also catches any per-block state that
+	// should have been per-sample.
+	//--------------------------------------------------------------------
+	const Vocoder::Params p = musicalParams ();
+	const Run a = render (p, 8192, 8192, sr);
+	const Run b = render (p, 8192, 8192, sr);
+	chk (identical (a, b), "two runs from reset() differ");
+
+	const Run c = render (p, 8192, 512, sr);
+	const Run d = render (p, 8192, 173, sr);
+	chk (identical (a, c), "512-frame blocks differ from one 8192-frame block");
+	chk (identical (a, d), "173-frame blocks differ from one 8192-frame block");
+
+	chk (a.peak > 0.0, "the vocoder produced silence - the rest of these prove nothing");
+
+	//--------------------------------------------------------------------
+	// DEVIATION: the stride-3 interleave.
+	//
+	// The DXi's loop advanced its index twice inside the body and once in
+	// the for statement, so it wrote frames 0, 1 then 3, 4 then 6, 7 and
+	// left every third interleaved sample at the zero the buffer was
+	// memset to. `damaged` is that output: the port's, with the DXi's
+	// pattern of holes punched back into it.
+	//
+	// A hole every third sample is a multiplication by a 3-sample square
+	// wave, which folds the signal to fs/3 either side of itself. The
+	// bands here stop below 1.5 kHz, so energy up at 14 kHz is that
+	// artefact and nothing else.
+	//--------------------------------------------------------------------
+	{
+		std::vector<float> interleaved (a.left.size () * 2);
+		for (std::size_t i = 0; i < a.left.size (); ++i)
+		{
+			interleaved[i * 2] = a.left[i];
+			interleaved[i * 2 + 1] = a.right[i];
+		}
+
+		std::vector<float> damaged = interleaved;
+		for (std::size_t i = 2; i < damaged.size (); i += 3)
+			damaged[i] = 0.0f;
+
+		// The fold lands at fs/3 offset by whatever the signal holds, so
+		// probe fs/3 itself and the carrier's images either side of it.
+		// Probing a round 14 kHz instead finds the skirt and understates
+		// the artefact by 25 dB - which is how this test first passed
+		// against a threshold it should have failed.
+		const double probes[3] = { sr / 3.0 - 220.0, sr / 3.0, sr / 3.0 + 220.0 };
+		double clean = 0.0, broken = 0.0;
+		for (double hz : probes)
+		{
+			const double a1 = energyAt (interleaved, hz, sr);
+			const double b1 = energyAt (damaged, hz, sr);
+			if (a1 > clean)
+				clean = a1;
+			if (b1 > broken)
+				broken = b1;
+		}
+
+		std::printf ("  stride artefact around fs/3: port %.1f dB, DXi %.1f dB\n",
+		             db (clean), db (broken));
+		chk (broken > clean * 100.0,
+		     "the DXi's stride would not have shown up at fs/3 - the test proves nothing");
+		chk (db (clean) < -100.0, "the port has artefact energy where it should have none");
+	}
+
+	//--------------------------------------------------------------------
+	// A patch cell that is open by an unmeasurable amount must do
+	// unmeasurably little.
+	//
+	// This compares the two BRANCHES against each other rather than
+	// trusting that they were typed the same way: at 1e-30 the cell is in
+	// the active list and every multiply and add runs, but the sum it
+	// contributes is far below the last bit of the accumulator.
+	//--------------------------------------------------------------------
+	{
+		Vocoder::Params off = musicalParams ();
+		Vocoder::Params tiny = off;
+		tiny.patch[3 * kMaxBands + 7] = 1e-30;
+
+		const Run r1 = render (off, 4096, 512, sr);
+		const Run r2 = render (tiny, 4096, 512, sr);
+		chk (identical (r1, r2), "a cell open by 1e-30 changed the output");
+
+		// And one open for real must not.
+		Vocoder::Params real = off;
+		real.patch[3 * kMaxBands + 7] = 1.0;
+		const Run r3 = render (real, 4096, 512, sr);
+		chk (! identical (r1, r3), "opening a cell for real changed nothing either");
+	}
+
+	//--------------------------------------------------------------------
+	// Bypass is the input, exactly.
+	//
+	// The DXi never read PARAM_ENABLE, so there is no original behaviour
+	// to match - but an effect that is off has to be its input and not an
+	// approximation of it.
+	//--------------------------------------------------------------------
+	{
+		Vocoder::Params offParams = musicalParams ();
+		offParams.enable = false;
+
+		Vocoder v;
+		v.setSampleRate (sr);
+		v.reset ();
+
+		std::vector<float> inL, inR;
+		fillInput (inL, inR, 1024, sr);
+		std::vector<float> outL (1024), outR (1024);
+		const float* in[2] = { inL.data (), inR.data () };
+		float* out[2] = { outL.data (), outR.data () };
+
+		// The first block crossfades out of the enabled state, so it is
+		// the SECOND that must be the input untouched.
+		v.process (offParams, in, 2, out, 2, 1024);
+		v.process (offParams, in, 2, out, 2, 1024);
+
+		bool same = true;
+		for (int i = 0; i < 1024; ++i)
+			if (outL[i] != inL[i] || outR[i] != inR[i])
+				same = false;
+		chk (same, "a disabled vocoder is not its input");
+	}
+
+	//--------------------------------------------------------------------
+	// A non-finite input must not stay in the recursion.
+	//
+	// The bands are resonant and their outputs are multiplied together by
+	// the matrix; one infinity would otherwise circulate for good. The DXi
+	// had no guard of any kind.
+	//--------------------------------------------------------------------
+	{
+		Vocoder v;
+		v.setSampleRate (sr);
+		v.reset ();
+
+		std::vector<float> inL (512, 0.0f), inR (512, 0.0f);
+		inL[10] = std::numeric_limits<float>::infinity ();
+		inR[11] = std::nanf ("");
+		std::vector<float> outL (512), outR (512);
+		const float* in[2] = { inL.data (), inR.data () };
+		float* out[2] = { outL.data (), outR.data () };
+
+		v.process (p, in, 2, out, 2, 512);
+
+		std::fill (inL.begin (), inL.end (), 0.0f);
+		std::fill (inR.begin (), inR.end (), 0.0f);
+		v.process (p, in, 2, out, 2, 512);
+
+		bool finite = true;
+		for (int i = 0; i < 512; ++i)
+			if (! std::isfinite (outL[i]) || ! std::isfinite (outR[i]))
+				finite = false;
+		chk (finite, "an infinity fed in one block was still there the next");
+	}
+
+	//--------------------------------------------------------------------
+	// The meter the editor reads.
+	//--------------------------------------------------------------------
+	{
+		Vocoder v;
+		v.setSampleRate (sr);
+		v.reset ();
+
+		std::vector<float> inL, inR;
+		fillInput (inL, inR, 512, sr);
+		std::vector<float> outL (512), outR (512);
+		const float* in[2] = { inL.data (), inR.data () };
+		float* out[2] = { outL.data (), outR.data () };
+
+		Vocoder::Params meterParams = musicalParams ();
+		meterParams.bands = 12;
+		v.process (meterParams, in, 2, out, 2, 512);
+
+		double frame[2 * kMaxBands] = { 0.0 };
+		const int count = v.meter (frame);
+		chk (count == 12, "the meter did not report one value per band");
+
+		double sum = 0.0;
+		for (int i = 0; i < count; ++i)
+			sum += frame[i];
+		chk (sum > 0.0, "every band envelope read zero");
+	}
+
+	//--------------------------------------------------------------------
+	// Band counts
+	//--------------------------------------------------------------------
+	for (int i = 0; i < 4; ++i)
+		chk (bandCount (i) == kBandCounts[i], "bandCount does not match the table");
+	chk (bandCount (-5.0) == 9, "an out-of-range band control did not clamp low");
+	chk (bandCount (99.0) == 22, "an out-of-range band control did not clamp high");
+
+	std::printf (fails ? "\n%d FAILURES\n" : "\nall vocoder checks passed\n", fails);
+	return fails ? 1 : 0;
+}
