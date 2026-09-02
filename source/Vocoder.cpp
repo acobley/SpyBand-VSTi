@@ -660,6 +660,9 @@ void Vocoder::process (const Params& params,
 	if (! params.enable && ! wasEnabled)
 	{
 		const double gain = params.inLevel * 5.0 + 0.00001;
+		const double gainR = params.interlaced
+			? (params.sampLevel * 5.0 + 0.00001)
+			: gain;
 		float peakL = 0.0f, peakR = 0.0f;
 		for (int f = 0; f < frames; ++f)
 		{
@@ -673,7 +676,7 @@ void Vocoder::process (const Params& params,
 			// while the plug-in is bypassed - which is when someone is
 			// most likely looking at them to work out what is arriving.
 			peakL = std::max (peakL, static_cast<float> (std::fabs (l * gain)));
-			peakR = std::max (peakR, static_cast<float> (std::fabs (r * gain)));
+			peakR = std::max (peakR, static_cast<float> (std::fabs (r * gainR)));
 		}
 		mSrcPeakL.store (peakL, std::memory_order_relaxed);
 		mSrcPeakR.store (peakR, std::memory_order_relaxed);
@@ -812,11 +815,29 @@ void Vocoder::process (const Params& params,
 		const double dryL = inL ? inL[f] : 0.0;
 		const double dryR = inR ? inR[f] : dryL;
 
+		// DEVIATION 6: Src Level scales the CARRIER.
+		//
+		// The DXi applied it to both channels here, before the split, so
+		// with Interlace on it scaled the right channel too - and the
+		// right channel is the modulator, which Wav Level then scaled
+		// again. One control on both sides of the multiply made the
+		// output go as Src SQUARED: halving it cost 12 dB, not 6.
+		//
+		// With Interlace on the right channel is left alone here and Wav
+		// Level scales it instead, exactly as Wav Level scales the sample
+		// slots. Without Interlace both channels ARE the carrier, so both
+		// still get it. See PORTING-NOTES section 6.
 		double srcL = (dryL + ditherNoise ()) * inLevel.v;
-		double srcR = (dryR + ditherNoise ()) * inLevel.v;
+		double srcR = (dryR + ditherNoise ())
+		            * (params.interlaced ? 1.0 : inLevel.v);
 
+		// Each column shows its channel after whatever control governs
+		// it: the left after Src Level, and the right after Wav Level
+		// when Interlace has made it the modulator, or after Src Level
+		// when it is simply the other half of the carrier.
 		peakL = std::max (peakL, static_cast<float> (std::fabs (srcL)));
-		peakR = std::max (peakR, static_cast<float> (std::fabs (srcR)));
+		peakR = std::max (peakR, static_cast<float> (
+			std::fabs (srcR) * (params.interlaced ? sampLevel.v : 1.0)));
 
 		const double pink = noiseValue () * noiseLevel.v;
 

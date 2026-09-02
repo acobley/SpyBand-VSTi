@@ -524,7 +524,10 @@ int main ()
 		close (peakL, 0.5, 0.01, "the left column does not read the left input");
 		close (peakR, 0.25, 0.01, "the right column does not read the right input");
 
-		// Halve Src Level and both columns must halve.
+		// DEVIATION 6: with Interlace on the controls are SPLIT. Halving
+		// Src Level halves the left and leaves the right alone; halving
+		// Wav Level does the opposite. If either of these ever fails,
+		// Src Level has crept back onto the modulator.
 		Vocoder::Params quiet = p2;
 		quiet.inLevel = 0.1;
 		Vocoder v2;
@@ -533,7 +536,17 @@ int main ()
 		v2.process (quiet, in, 2, out, 2, 2048);
 		v2.inputPeaks (peakL, peakR);
 		close (peakL, 0.25, 0.01, "Src Level does not scale the left column");
-		close (peakR, 0.125, 0.01, "Src Level does not scale the right column");
+		close (peakR, 0.25, 0.01, "Src Level still reaches the right channel");
+
+		Vocoder::Params quietR = p2;
+		quietR.sampLevel = 0.1;
+		Vocoder v2b;
+		v2b.setSampleRate (sr);
+		v2b.reset ();
+		v2b.process (quietR, in, 2, out, 2, 2048);
+		v2b.inputPeaks (peakL, peakR);
+		close (peakL, 0.5, 0.01, "Wav Level reaches the left channel");
+		close (peakR, 0.125, 0.01, "Wav Level does not scale the right column");
 
 		// THE POINT OF THEM: a mono source moves both columns the same,
 		// which is what says "these two channels are the same audio" -
@@ -545,6 +558,54 @@ int main ()
 		v3.process (p2, mono, 2, out, 2, 2048);
 		v3.inputPeaks (peakL, peakR);
 		chk (peakL == peakR, "a mono source did not read identically on both columns");
+	}
+
+	//--------------------------------------------------------------------
+	// DEVIATION 6, where it is audible: Src Level is no longer squared.
+	//
+	// The DXi scaled both channels before the split, so with Interlace on
+	// one control sat on both sides of the vocoder's multiply and the
+	// output went as Src SQUARED - halving it cost 12 dB. `asDxi` is that
+	// behaviour written out: the same gain applied to the modulator by
+	// hand, which is what the port used to do implicitly.
+	//--------------------------------------------------------------------
+	{
+		const auto rmsOf = [&] (const Run& run)
+		{
+			double sum = 0.0;
+			for (float v : run.left)
+				sum += double (v) * v;
+			return std::sqrt (sum / run.left.size ());
+		};
+
+		double previous = 0.0, previousDxi = 0.0;
+		for (int step = 0; step < 3; ++step)
+		{
+			const double src = 0.2 / (1 << step);          // 0.2, 0.1, 0.05
+
+			Vocoder::Params now = musicalParams ();
+			now.inLevel = src;
+
+			// The DXi's coupling: Src Level on the modulator as well.
+			Vocoder::Params asDxi = musicalParams ();
+			asDxi.inLevel = src;
+			asDxi.sampLevel = 0.2 * (src * 5.0 + 0.00001);
+
+			const double a = rmsOf (renderProbe (now, 220.0, 1000.0, 44100, sr, 8192));
+			const double b = rmsOf (renderProbe (asDxi, 220.0, 1000.0, 44100, sr, 8192));
+
+			if (step > 0)
+			{
+				const double drop = db (previous) - db (a);
+				const double dropDxi = db (previousDxi) - db (b);
+				std::printf ("  halving Src Level: port %.1f dB, the DXi's coupling %.1f dB\n",
+				             drop, dropDxi);
+				close (drop, 6.02, 0.3, "Src Level is not 6 dB per halving");
+				close (dropDxi, 12.04, 0.4, "the DXi's coupling was not 12 dB per halving");
+			}
+			previous = a;
+			previousDxi = b;
+		}
 	}
 
 	//--------------------------------------------------------------------

@@ -277,19 +277,11 @@ choose a file. See §6 — the enable is the write the DXi never had.
 
 ### Channel prefixes on the two level controls
 
-Added for user testing, and they are not quite the "L" and "R" that were
-asked for, because the two controls are not symmetrical:
-
-* **Src Level** sits *before* the split and scales both channels, so it
-  reads **L+R** in every mode — including, with Interlace on, the right
-  channel on its way to becoming the modulator, which Wav Level then
-  scales again. Labelling it "L" would be wrong everywhere.
-* **Wav Level** scales only the modulator, so its prefix follows the mode:
-  **R** with Interlace on, **Smp** without, rather than lying in one of
-  them.
-
-Set in `refresh()` rather than at construction, since one of them depends
-on a parameter.
+With Interlace on the split is real, so the labels say so: **L Src Level**
+and **R Wav Level**. With it off both channels are the carrier and Wav
+Level is scaling the sample slots rather than a channel, so they read
+**L+R Src Level** and **Smp Wav Level**. Set in `refresh()` rather than at
+construction, since they depend on a parameter.
 
 ### The input LED columns
 
@@ -567,6 +559,48 @@ round. Guarded; the guard costs nothing and removes the luck.
 The generator itself is reproduced rather than replaced — MSVC's
 `seed = seed * 214013 + 2531011; return (seed >> 16) & 0x7fff` — so the
 pink noise is literally the noise the plug-in always made.
+
+### DEVIATION 6 — Src Level moved to after the split
+
+The DXi applied Src Level to both channels at the top of the loop, before
+anything else:
+
+```c++
+fLeftSrc  = (pfSrc[ix]   + noise) * fInLevel;
+fRightSrc = (pfSrc[ix+1] + noise) * fInLevel;
+```
+
+which is right when both channels are the carrier — but with **Interlace**
+on the right channel is the *modulator*, and Wav Level then scaled it a
+second time. One control ended up on **both sides of the vocoder's
+multiply**, so the output went as Src Level *squared*.
+
+That is measurable and it is not subtle. Halving Src Level:
+
+| | per halving |
+|---|---:|
+| the DXi's coupling | **−12.0 dB** |
+| the port | **−6.0 dB** |
+
+`VocoderTests` asserts both numbers, with the DXi's behaviour written out
+beside the port's — the same gain applied to the modulator by hand — so
+the two can be compared rather than taken on trust.
+
+With Interlace on, Src Level now scales the left channel alone and Wav
+Level scales the right, exactly as Wav Level scales the sample slots.
+Without Interlace both channels **are** the carrier, so Src Level still
+scales both and nothing changes. Sample mode is untouched by this in
+either case, because the samples never saw Src Level.
+
+At the factory default the change is inaudible — Src Level defaults to
+20 %, which the DSP takes as unity, so the factor removed from the
+modulator is 1.00001. It only bites once the control is moved, which is
+exactly when the old behaviour was most confusing.
+
+The two LED columns follow the same split: the left column reads its
+channel after Src Level, the right after Wav Level when Interlace has made
+it the modulator, and after Src Level when it is simply the other half of
+the carrier.
 
 ### Smaller ones
 

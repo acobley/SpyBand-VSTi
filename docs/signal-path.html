@@ -60,10 +60,11 @@
   <text class="s" x="86" y="134" text-anchor="middle">L / R</text>
 
   <rect class="bx car" x="176" y="90" width="126" height="64"/>
-  <text class="t" x="239" y="114" text-anchor="middle">Src Level</text>
-  <text class="s" x="239" y="132" text-anchor="middle">control × 5</text>
-  <text class="s" x="239" y="147" text-anchor="middle">unity at 20 %</text>
+  <text class="t" x="239" y="112" text-anchor="middle">Src Level</text>
+  <text class="s" x="239" y="130" text-anchor="middle">control × 5</text>
+  <text class="s" x="239" y="146" text-anchor="middle">the carrier only</text>
   <path class="wc" d="M142,122 H176" marker-end="url(#ac)"/>
+  <text class="note" x="239" y="178" text-anchor="middle">unity at 20 %</text>
 
   <path class="wc" d="M302,122 H313"/>
   <circle cx="326" cy="122" r="11" fill="#2f6296"/>
@@ -172,8 +173,9 @@
   <text class="s" x="300" y="775" text-anchor="middle">on: In R</text>
 
   <rect class="bx mod" x="396" y="722" width="112" height="60"/>
-  <text class="t" x="452" y="746" text-anchor="middle">Wav Level</text>
-  <text class="s" x="452" y="764" text-anchor="middle">control × 5</text>
+  <text class="t" x="452" y="742" text-anchor="middle">Wav Level</text>
+  <text class="s" x="452" y="758" text-anchor="middle">control × 5</text>
+  <text class="s" x="452" y="772" text-anchor="middle">the modulator only</text>
 
   <rect class="bx mod" x="556" y="712" width="162" height="80"/>
   <text class="t" x="637" y="740" text-anchor="middle">Modulator bank</text>
@@ -196,10 +198,13 @@
   <path class="wm" d="M924,752 H966" marker-end="url(#am)"/>
 
   <!-- In R taps off Src Level and runs down the clear left channel -->
-  <path class="wm" d="M200,156 V753 H244" marker-end="url(#am)"/>
-  <circle cx="200" cy="200" r="11" fill="#8a6410"/>
-  <text x="200" y="205" text-anchor="middle" font-size="12.5" font-weight="700" fill="#ffffff">R</text>
-  <text class="note" x="182" y="470" text-anchor="middle" transform="rotate(-90 182 470)">the right channel, after Src Level</text>
+  <path class="wm" d="M86,156 V753 H244" marker-end="url(#am)"/>
+  <circle cx="86" cy="200" r="11" fill="#8a6410"/>
+  <text x="86" y="205" text-anchor="middle" font-size="12.5" font-weight="700" fill="#ffffff">R</text>
+  <text class="note" x="68" y="470" text-anchor="middle" transform="rotate(-90 68 470)">the right channel, BEFORE Src Level</text>
+
+  <text class="note" x="112" y="600">Interlace on: Src Level takes the left,</text>
+  <text class="note" x="112" y="617">Wav Level takes the right — one control each</text>
 
   <!-- ================= THROUGH ================= -->
   <path class="wt" d="M300,796 V858 H396" marker-end="url(#at)"/>
@@ -216,8 +221,8 @@
     <p>With Interlace on, the <strong>left channel is carried to the output</strong> and the <strong>right channel only shapes it</strong>. Measured: 220&nbsp;Hz left and 1&nbsp;kHz right gives 220&nbsp;Hz out and nothing at 1&nbsp;kHz; swap them and the output swaps too. Either channel alone gives silence. In most vocoders you sing into the modulator — here you play into the carrier.</p>
   </div>
   <div>
-    <h2>Src Level scales both channels</h2>
-    <p>It is one gain on the stereo pair, before the split — so in Interlace mode it scales the carrier <em>and</em> the modulator. Halving it costs 12&nbsp;dB, not 6: six from the carrier and six more from the envelope that shapes it. Through, separately, taps the modulator before the bank and never touches the carrier.</p>
+    <h2>One control per channel</h2>
+    <p>The DXi scaled both channels before the split, so with Interlace on Src Level sat on <em>both</em> sides of the vocoder's multiply and the output went as Src squared — halving it cost 12&nbsp;dB. Src Level now takes the left and Wav Level the right, one control each, and halving either costs 6&nbsp;dB. Without Interlace both channels are the carrier, so Src Level still scales both.</p>
   </div>
   <div>
     <h2>The display is not a level meter</h2>
