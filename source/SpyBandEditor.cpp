@@ -188,8 +188,10 @@ bool PLUGIN_API SpyBandEditor::open (void* parent, const PlatformType& platformT
 	addSlider (kRelease,          "Env  Release", 12,  14, 46, 17);
 	addSlider (kAttack,           "Env  Attack",  12,  30, 46, 17);
 	addSlider (kEnvBoost,         "Env Level",    12,  47, 46, 17);
+	// The channel prefixes are set in refresh(), because one of them
+	// depends on Interlace. See the note there.
 	addSlider (kSampLevel,        "Wav Level",    12,  89, 46, 17);
-	addSlider (kInLevel,          "Src Level",    12, 106, 46, 17);
+	addSlider (kInLevel,          "L+R Src Level", 12, 106, 46, 17);
 	addSlider (kSampThroughLevel, "Through",      12, 122, 46, 17);
 
 	// NEW: the output trim, in the empty corner under the level controls,
@@ -353,6 +355,29 @@ void SpyBandEditor::refresh ()
 			.toInternal (mController->getParamNormalized (kNoiseHighFreq));
 		static_cast<SpySlider*> (control)->setValueText (
 			formatHz (noiseHighPassHz (internal, sampleRate)));
+	}
+
+	//--------------------------------------------------------------------
+	// The channel prefixes on the two level controls.
+	//
+	// Asked for as "L" and "R" during testing, and they cannot be quite
+	// that, because the two controls are not symmetrical:
+	//
+	//   Src Level sits BEFORE the split and scales both channels, so it is
+	//   always L+R - including, in Interlace mode, the right channel on
+	//   its way to becoming the modulator, which Wav Level then scales
+	//   again. Labelling it "L" would be wrong in every mode.
+	//
+	//   Wav Level scales only the modulator, which IS the right channel
+	//   with Interlace on and is the sample slots without it. So its
+	//   prefix follows the mode rather than lying in one of them.
+	//--------------------------------------------------------------------
+	{
+		const bool interlaced =
+			mController->getParamNormalized (kInterlaced) >= 0.5;
+		if (auto* control = mControls[kSampLevel])
+			static_cast<SpySlider*> (control)->setLabel (
+				interlaced ? "R Wav Level" : "Smp Wav Level");
 	}
 
 	// The voiced lamp.

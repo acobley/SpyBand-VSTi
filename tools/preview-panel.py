@@ -241,8 +241,8 @@ def main():
     slider(d, (12, 14, 46, 17), "Env  Release", "5", 0.05)
     slider(d, (12, 30, 46, 17), "Env  Attack", "5", 0.05)
     slider(d, (12, 47, 46, 17), "Env Level", "25", 0.25)
-    slider(d, (12, 89, 46, 17), "Wav Level", "20", 0.20)
-    slider(d, (12, 106, 46, 17), "Src Level", "20", 0.20)
+    slider(d, (12, 89, 46, 17), "R Wav Level", "20", 0.20)
+    slider(d, (12, 106, 46, 17), "L+R Src Level", "20", 0.20)
     slider(d, (12, 122, 46, 17), "Through", "0", 0.0)
     slider(d, (12, 156, 46, 17), "Output Trim", "-20 dB", 40.0 / 60.0)
 

@@ -275,6 +275,22 @@ nothing.
 Click the **lamp** to enable or disable the slot; click anywhere else to
 choose a file. See §6 — the enable is the write the DXi never had.
 
+### Channel prefixes on the two level controls
+
+Added for user testing, and they are not quite the "L" and "R" that were
+asked for, because the two controls are not symmetrical:
+
+* **Src Level** sits *before* the split and scales both channels, so it
+  reads **L+R** in every mode — including, with Interlace on, the right
+  channel on its way to becoming the modulator, which Wav Level then
+  scales again. Labelling it "L" would be wrong everywhere.
+* **Wav Level** scales only the modulator, so its prefix follows the mode:
+  **R** with Interlace on, **Smp** without, rather than lying in one of
+  them.
+
+Set in `refresh()` rather than at construction, since one of them depends
+on a parameter.
+
 ### The input LED columns
 
 NEW, and they earned their place by hindsight. They read the two taps
