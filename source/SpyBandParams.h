@@ -20,21 +20,10 @@
 
 #include <cstddef>
 
+#include "BandLayout.h"
 #include "pluginterfaces/vst/vsttypes.h"
 
 namespace SpyBand {
-
-//------------------------------------------------------------------------
-// Band counts
-//
-// The DXi offered 9, 12, 18 or 22 bands (SpyBand.cpp:482-506, and the four
-// AddValue strings on m_bands9 in SpyBandPropPage.cpp:851-855). 22 is the
-// largest, so the patch matrix is 22 x 22 whatever the current setting;
-// cells past the current band count are simply not read.
-//------------------------------------------------------------------------
-constexpr int kBandCounts[4] = { 9, 12, 18, 22 };
-constexpr int kMaxBands      = 22;
-constexpr int kPatchCells    = kMaxBands * kMaxBands;   // 484
 
 //------------------------------------------------------------------------
 enum Param : Steinberg::Vst::ParamID
@@ -194,8 +183,6 @@ void patchTitle (Steinberg::Vst::ParamID id, char* out, std::size_t outSize);
 extern const char* const kBandsNames[4];        // "9 Bands" .. "22 Bands"
 extern const char* const kFilterSlopeNames[3];  // "Shallow" .. "Steep"
 
-/** Band count for a control at `internal` (0..3). */
-int bandCount (double internal);
 
 //------------------------------------------------------------------------
 // Two-state parameters that read as words, not as On/Off
@@ -216,59 +203,10 @@ extern const char* const kNoiseOverrideNames[2];  // see NOISE OVERRIDE below
 const char* const* booleanNames (Steinberg::Vst::ParamID id);
 
 //------------------------------------------------------------------------
-// Frequency readouts
-//
-// The dialog showed the bottom band's centre frequency under "Bottom
-// Freq", the top band's under "Top Freq" and the noise high-pass corner
-// under "Noise HighPass" (SpyBandPropPage.cpp:474-487, reading
-// getBassFreq/getTopFreq/getNoiseHighFreq off the DSP through a
-// back-channel). VST3 splits the processor and the controller, so the
-// editor has to recompute - and these are the shared functions both sides
-// call, so the two cannot drift apart. They live beside the parameter
-// table because they are functions OF the parameters.
-//
-// All three take the sample rate, because the DXi's hard-coded 44100 is
-// the one thing about them the port does not preserve. See DEVIATION 3.
+// The frequency readouts, the envelope times and the output trim live in
+// BandLayout.h, which this header includes: they are shared with the DSP,
+// which must not see an SDK type.
 //------------------------------------------------------------------------
-
-/** Centre frequency of band `index` of `bands`, in Hz, for the bottom-freq
-    and spread controls at their internal (0..1) values. This is the
-    formula from CSpyBand::setFilterConstantsc, and the DSP calls the same
-    function rather than keeping its own copy. */
-double bandCentreHz (double freqInternal, double spreadInternal,
-                     int bands, int index, double sampleRate);
-
-/** The noise high-pass corner, from CSpyBand::setNoiseHighFilterConstants:
-    a quarter of the sample rate, scaled by the control. */
-double noiseHighPassHz (double internal, double sampleRate);
-
-/** Envelope follower attack and release in milliseconds, from
-    SpyBand.cpp:519-530: attack is control * 250 + 1, release is
-    control * 100 + 1. */
-double envAttackMs  (double internal);
-double envReleaseMs (double internal);
-
-//------------------------------------------------------------------------
-// Output trim
-//
-// NOT from the DXi. See PORTING-NOTES.md section 5 for the measurement that
-// decided its default; the short version is that the DXi multiplies its
-// input by 5, its envelopes by 10, every filter output by 3 and every patch
-// value by 2, and none of that is compensated anywhere.
-//
-// 0..100 % maps to silence and then -kOutputRangeDb up to 0 dB, so the TOP
-// of the control is the DXi's own staging and nothing is lost.
-//------------------------------------------------------------------------
-constexpr double kOutputRangeDb = 40.0;
-
-/** Trim control (0..1) -> a linear gain. Zero is silence. */
-double outputGain (double control);
-
-/** The same in decibels, for display. Returns -1e9 at silence. */
-double outputDecibels (double control);
-
-/** The inverse of outputDecibels, clamped to the control's travel. */
-double outputControlFromDb (double db);
 
 //------------------------------------------------------------------------
 } // namespace SpyBand
