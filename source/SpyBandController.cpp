@@ -3,6 +3,7 @@
 //------------------------------------------------------------------------
 
 #include "SpyBandController.h"
+#include "SpyBandEditor.h"
 #include "SpyBandIDs.h"
 
 #include "base/source/fstreamer.h"
@@ -10,6 +11,7 @@
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "public.sdk/source/vst/vstparameters.h"
 
+#include <algorithm>
 #include <cstring>
 
 using namespace Steinberg;
@@ -359,6 +361,57 @@ tresult PLUGIN_API SpyBandController::notify (IMessage* message)
 	}
 
 	return EditControllerEx1::notify (message);
+}
+
+//------------------------------------------------------------------------
+IPlugView* PLUGIN_API SpyBandController::createView (FIDString name)
+{
+	if (name && FIDStringsEqual (name, ViewType::kEditor))
+		return new SpyBandEditor (this);
+	return nullptr;
+}
+
+//------------------------------------------------------------------------
+tresult PLUGIN_API SpyBandController::setParamNormalized (ParamID tag, ParamValue value)
+{
+	const tresult result = EditControllerEx1::setParamNormalized (tag, value);
+	if (result != kResultOk)
+		return result;
+
+	for (auto* editor : mEditors)
+		editor->updateControl (tag, value);
+
+	return result;
+}
+
+//------------------------------------------------------------------------
+void SpyBandController::editorAttached (EditorView* editor)
+{
+	if (auto* e = dynamic_cast<SpyBandEditor*> (editor))
+		if (std::find (mEditors.begin (), mEditors.end (), e) == mEditors.end ())
+			mEditors.push_back (e);
+}
+
+//------------------------------------------------------------------------
+void SpyBandController::editorRemoved (EditorView* editor)
+{
+	editorDestroyed (editor);
+}
+
+//------------------------------------------------------------------------
+void SpyBandController::editorDestroyed (EditorView* editor)
+{
+	// Do NOT dynamic_cast here. EditorView::~EditorView() is one of the two
+	// callers, and by then the SpyBandEditor sub-object is gone, so the cast
+	// yields null and the entry survives as a dangling pointer - which the
+	// next setParamNormalized above would then walk. Comparing upcast
+	// pointers is well defined at every point in the destruction sequence.
+	// See PORTING-GUIDE section 7; this one cost real time on SpaceDub.
+	mEditors.erase (std::remove_if (mEditors.begin (), mEditors.end (),
+	                                [editor] (SpyBandEditor* e) {
+		                                return static_cast<EditorView*> (e) == editor;
+	                                }),
+	                mEditors.end ());
 }
 
 //------------------------------------------------------------------------

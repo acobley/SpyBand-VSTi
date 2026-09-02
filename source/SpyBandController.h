@@ -16,8 +16,11 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 
 #include <string>
+#include <vector>
 
 namespace SpyBand {
+
+class SpyBandEditor;
 
 //------------------------------------------------------------------------
 class SpyBandController : public Steinberg::Vst::EditControllerEx1
@@ -35,6 +38,14 @@ public:
 	Steinberg::tresult PLUGIN_API terminate () SMTG_OVERRIDE;
 	Steinberg::tresult PLUGIN_API setComponentState (Steinberg::IBStream* state) SMTG_OVERRIDE;
 	Steinberg::tresult PLUGIN_API notify (Steinberg::Vst::IMessage* message) SMTG_OVERRIDE;
+
+	Steinberg::IPlugView* PLUGIN_API createView (Steinberg::FIDString name) SMTG_OVERRIDE;
+	Steinberg::tresult PLUGIN_API setParamNormalized (
+		Steinberg::Vst::ParamID tag, Steinberg::Vst::ParamValue value) SMTG_OVERRIDE;
+
+	void editorAttached (Steinberg::Vst::EditorView* editor) SMTG_OVERRIDE;
+	void editorRemoved (Steinberg::Vst::EditorView* editor) SMTG_OVERRIDE;
+	void editorDestroyed (Steinberg::Vst::EditorView* editor) SMTG_OVERRIDE;
 
 	//--------------------------------------------------------------------
 	// What the editor needs and cannot compute for itself
@@ -72,6 +83,8 @@ private:
 
 	std::string mSlotPath[Vocoder::kNumSlots];
 	bool        mSlotLoaded[Vocoder::kNumSlots] = { false, false, false, false, false };
+
+	std::vector<SpyBandEditor*> mEditors;
 
 	double mMeter[2 * kMaxBands] = { 0.0 };
 	int    mMeterCount = 0;
