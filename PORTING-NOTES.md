@@ -275,6 +275,30 @@ nothing.
 Click the **lamp** to enable or disable the slot; click anywhere else to
 choose a file. See §6 — the enable is the write the DXi never had.
 
+### The input LED columns
+
+NEW, and they earned their place by hindsight. They read the two taps
+immediately after Src Level — the point at which the left goes on to be
+the carrier and the right becomes the modulator with Interlace on — and
+they sit in the 48-pixel channel the dialog left empty between its first
+and second columns of controls. Placed in pixels, since there is nothing in
+the `.rc` to convert.
+
+They exist because of an afternoon spent chasing a sound that was
+"not right" and turned out to be a **mono source**. With identical audio in
+both channels, Interlace mode makes the signal its own modulator, every
+band is multiplied by its own envelope, and the result is a per-band
+squaring: fed a pure 220 Hz sine it puts a third harmonic only **20 dB**
+below the fundamental, against 65 dB below with a genuine stereo source.
+Two columns side by side answer "are these two channels actually different
+audio?" at a glance, which nothing else on the panel does.
+
+Scale is 0 dBFS down to −60, twenty segments, green with amber for the last
+9 dB and red for the last 3. Instant attack, gentle release, and a held
+peak that slides down to meet the bar after about a second — a meter that
+falls as fast as it rises cannot be read, and one that falls slowly hides a
+gate closing.
+
 ---
 
 ## 4. Testing
@@ -316,6 +340,11 @@ from the inside.
 Also asserted: two runs from `reset()` are identical; a patch cell open by
 1e-30 changes nothing while one open for real does; a disabled vocoder is
 its input bit for bit; an infinity fed in one block is gone by the next.
+
+**The input taps**, which the LED columns read: the peak is the input times
+Src Level and nothing else, halving Src Level halves both, and a mono
+source reads identically on both columns — which is the whole reason they
+are there.
 
 **The through path**, added after a report that it might be passing signal
 regardless of its setting. The decisive check empties the patch matrix, so
@@ -375,6 +404,29 @@ Nothing clips inside a float plug-in, so the trim costs nothing; the reason
 to have it is that a level over the ceiling **masks other faults**. Every
 setting above it comes out at the same level, which reads as a control that
 has stopped working rather than as clipping.
+
+### There is no bleed path
+
+Asked to look into signal apparently getting through in sample mode. There
+is none. With a slot enabled and holding **digital zero**, and a full-level
+carrier going in, the output is −338 dBFS — nothing at all. And across the
+whole range the output tracks the modulator **1 : 1**:
+
+| modulator | output rms |
+|---:|---:|
+| silence | −338.5 dB |
+| −80 dBFS | −80.5 dB |
+| −60 dBFS | −60.5 dB |
+| −40 dBFS | −40.5 dB |
+| −20 dBFS | −20.5 dB |
+| 0 dBFS | −0.5 dB |
+
+Twenty decibels of modulator buys exactly twenty decibels of output, with
+no constant term anywhere. So what is heard as bleed is the carrier passing
+under the modulator's own envelope — the vocoder working — and its floor is
+**the sample's noise floor**. A .wav with hiss at −60 dBFS holds every band
+open at −60 dB for as long as it plays. A cleaner sample, or a gate on the
+modulator, is what removes it; there is nothing in the code to fix.
 
 ---
 

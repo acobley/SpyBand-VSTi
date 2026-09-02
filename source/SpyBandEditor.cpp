@@ -229,6 +229,20 @@ bool PLUGIN_API SpyBandEditor::open (void* parent, const PlatformType& platformT
 	addSelector (kFilterSlopes, kFilterSlopeNames, 3, 186, 151, 55, 11);
 
 	//--------------------------------------------------------------------
+	// The input LED columns.
+	//
+	// NEW. They read the taps marked L and R on docs/signal-path.png -
+	// straight out of Src Level, where the two channels part company - and
+	// they go in the empty channel between the .rc's first column of
+	// controls (which ends at x 87) and its second (which starts at 135).
+	// Pixels, not dialog units: there is nothing in the .rc to convert.
+	//--------------------------------------------------------------------
+	mInputMeter[0] = new SpyLedColumn (CRect (93, 143, 109, 300), "L");
+	mInputMeter[1] = new SpyLedColumn (CRect (115, 143, 131, 300), "R");
+	frame->addView (mInputMeter[0]);
+	frame->addView (mInputMeter[1]);
+
+	//--------------------------------------------------------------------
 	// The band meter and the patch matrix.
 	//--------------------------------------------------------------------
 	mMeter = new SpyBandMeter (fromDlu (171, 12, 111, 55));
@@ -291,6 +305,8 @@ void PLUGIN_API SpyBandEditor::close ()
 	mBitmaps.clear ();
 	for (auto*& button : mFileButtons)
 		button = nullptr;
+	for (auto*& column : mInputMeter)
+		column = nullptr;
 	mPatchBoard = nullptr;
 	mMeter = nullptr;
 	mVersion = nullptr;
@@ -356,6 +372,12 @@ void SpyBandEditor::refresh ()
 			mController->slotLoaded (slot)
 			&& mController->getParamNormalized (static_cast<ParamID> (kSample1 + slot)) >= 0.5);
 	}
+
+	// The input columns. They are fed from the same message as the band
+	// meter, so they cost nothing extra.
+	for (int i = 0; i < 2; ++i)
+		if (mInputMeter[i])
+			mInputMeter[i]->setLevel (mController->inputPeak (i));
 
 	// The meter, and the grid that has to match the band count.
 	if (mMeter)

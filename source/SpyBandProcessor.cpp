@@ -407,15 +407,21 @@ tresult PLUGIN_API SpyBandProcessor::notify (IMessage* message)
 			FReleaser releaser (reply);
 			reply->setMessageID (kSpyBandMeterDataMessage);
 
-			// [0] is the voiced lamp, [1] the count, then the bands.
-			double frame[2 + 2 * kMaxBands] = { 0.0 };
-			const int count = mVocoder.meter (frame + 2);
+			// [0] the voiced lamp, [1] the band count, [2] and [3] the
+			// left and right input peaks, then the bands.
+			double frame[4 + 2 * kMaxBands] = { 0.0 };
+			const int count = mVocoder.meter (frame + 4);
 			frame[0] = mVocoder.voicedState () ? 1.0 : 0.0;
 			frame[1] = static_cast<double> (count);
 
+			float peakL = 0.0f, peakR = 0.0f;
+			mVocoder.inputPeaks (peakL, peakR);
+			frame[2] = peakL;
+			frame[3] = peakR;
+
 			reply->getAttributes ()->setBinary (
 				kSpyBandMeterAttribute, frame,
-				static_cast<uint32> (sizeof (double) * (2 + count)));
+				static_cast<uint32> (sizeof (double) * (4 + count)));
 			sendMessage (reply);
 		}
 		return kResultOk;

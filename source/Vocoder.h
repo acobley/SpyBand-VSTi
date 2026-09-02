@@ -154,6 +154,15 @@ public:
 	    audio thread. */
 	int meter (double* out) const;
 
+	/** Peak of the two taps the panel meters, taken immediately after Src
+	    Level and before anything else touches them: [0] is the left - the
+	    carrier - and [1] the right, which is the modulator with Interlace
+	    on. Over the last block.
+
+	    Same threading story as the band meter: two atomics written by the
+	    audio thread, read by the editor's timer. */
+	void inputPeaks (float& left, float& right) const;
+
 	/** The voiced detector's last verdict. */
 	bool voicedState () const { return mVoicedStore.load (std::memory_order_relaxed); }
 
@@ -245,6 +254,8 @@ private:
 	// the editor's timer.
 	double mMeter[2 * kMaxBands] = { 0.0 };
 	std::atomic<int> mMeterCount { 0 };
+	std::atomic<float> mSrcPeakL { 0.0f };
+	std::atomic<float> mSrcPeakR { 0.0f };
 
 	// What the current coefficients were computed FROM, so they are only
 	// recomputed when one of them moves - as the DXi did.

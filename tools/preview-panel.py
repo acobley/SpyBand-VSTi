@@ -150,6 +150,48 @@ def file_button(d, geometry, name, on):
     lamp(d, box, on)
 
 
+LED_GREEN = (50, 255, 50)
+LED_AMBER = (255, 190, 40)
+LED_RED = (255, 0, 0)
+LED_OFF = (26, 26, 26)
+LED_SEGMENTS = 20
+
+
+def led_column(d, box, level, peak, label):
+    """A segmented input meter, in PIXELS - these are new and have no
+    dialog units to convert from."""
+    l, t, r, b = box
+    label_h = 13
+    body = [l, t, r, b - label_h]
+    draw3d(d, body, LAMP_FRAME, LAMP_FRAME)
+
+    inner = [body[0] + 2, body[1] + 2, body[2] - 2, body[3] - 2]
+    pitch = (inner[3] - inner[1]) / LED_SEGMENTS
+    lit_to = int(level * LED_SEGMENTS + 0.5)
+    peak_at = int(peak * LED_SEGMENTS + 0.5)
+
+    for i in range(LED_SEGMENTS):
+        top = inner[3] - (i + 1) * pitch
+        cell = [inner[0], top + 1, inner[2], top + pitch - 1]
+        if cell[3] <= cell[1]:
+            continue
+        if i >= LED_SEGMENTS - 2:
+            colour = LED_RED
+        elif i >= LED_SEGMENTS - 5:
+            colour = LED_AMBER
+        else:
+            colour = LED_GREEN
+        lit = i < lit_to
+        is_peak = peak_at > 0 and i == peak_at - 1
+        if not lit and not is_peak:
+            colour = LED_OFF
+        elif not lit and is_peak:
+            colour = tuple(int(c * 0.66) for c in colour)
+        d.rectangle(cell, fill=colour)
+
+    fitted(d, label, [l, b - label_h, r, b], LABEL)
+
+
 def meter(d, geometry, values, stereo=False):
     box = rect(*geometry)
     l, t, r, b = box
@@ -221,6 +263,10 @@ def main():
     selector(d, (186, 140, 55, 11), "9 Bands")
     selector(d, (186, 151, 55, 11), "Shallow Slope")
 
+    # ---- the new input LED columns, in pixels
+    led_column(d, [93, 143, 109, 300], 0.72, 0.80, "L")
+    led_column(d, [115, 143, 131, 300], 0.44, 0.52, "R")
+
     # ---- displays
     meter(d, (171, 12, 111, 55),
           [0.15, 0.42, 0.66, 0.81, 0.55, 0.30, 0.47, 0.72, 0.22])
@@ -286,12 +332,19 @@ BOXES = [
 TOUCHING_PX = 2.0
 
 
+# The LED columns are placed in pixels, so they go into the check as a
+# pre-converted box rather than through rect().
+PIXEL_BOXES = [
+    ("Input LED L", [93, 143, 109, 300]),
+    ("Input LED R", [115, 143, 131, 300]),
+]
+
+
 def report_overlaps():
+    boxes = [(n, rect(*g)) for n, g in BOXES] + PIXEL_BOXES
     touching, colliding = [], []
-    for i, (name_a, a) in enumerate(BOXES):
-        ra = rect(*a)
-        for name_b, b in BOXES[i + 1:]:
-            rb = rect(*b)
+    for i, (name_a, ra) in enumerate(boxes):
+        for name_b, rb in boxes[i + 1:]:
             dx = min(ra[2], rb[2]) - max(ra[0], rb[0])
             dy = min(ra[3], rb[3]) - max(ra[1], rb[1])
             if dx <= 0 or dy <= 0:
@@ -311,8 +364,7 @@ def report_overlaps():
     else:
         print("no two controls collide")
 
-    for name, box in BOXES:
-        r = rect(*box)
+    for name, r in boxes:
         if r[0] < 0 or r[1] < 0 or r[2] > 564 or r[3] > 353:
             print("  %s falls outside the panel: %s" % (name, r))
 

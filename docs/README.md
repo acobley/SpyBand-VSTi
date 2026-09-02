@@ -24,6 +24,9 @@ way `SlideSpin::PaintBk`, `PatchBoard::PaintBk` and `DrawArea::PaintBk`
 drew theirs, so a control that is in the wrong place here is in the wrong
 place in the plug-in.
 
+It also carries the two input LED columns, which are new — see
+PORTING-NOTES §3.
+
 Looking at it caught three faults that reading the code had not:
 
 * the red value text was drawn straight through the green label, because

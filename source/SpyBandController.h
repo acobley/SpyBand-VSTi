@@ -76,6 +76,13 @@ public:
 	int meter (double* out) const;
 	bool voiced () const { return mVoiced; }
 
+	/** The two input peaks the LED columns show, post Src Level. `which`
+	    is 0 for left and 1 for right. */
+	double inputPeak (int which) const
+	{
+		return (which >= 0 && which < 2) ? mInputPeak[which] : 0.0;
+	}
+
 private:
 	void addParameters ();
 
@@ -89,6 +96,7 @@ private:
 	double mMeter[2 * kMaxBands] = { 0.0 };
 	int    mMeterCount = 0;
 	bool   mVoiced = false;
+	double mInputPeak[2] = { 0.0, 0.0 };
 };
 
 //------------------------------------------------------------------------

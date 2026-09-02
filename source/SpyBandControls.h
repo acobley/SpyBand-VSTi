@@ -267,6 +267,44 @@ private:
 };
 
 //------------------------------------------------------------------------
+/** A segmented LED column, for the two input taps.
+
+    NEW - the DXi had nothing like it. It reads the signal immediately
+    after Src Level, which is the point marked L and R on
+    docs/signal-path.png and the point at which the two channels part
+    company: the left goes on to be the carrier, the right becomes the
+    modulator when Interlace is on.
+
+    Two of them side by side answer the question that cost a whole
+    afternoon: are these two channels actually carrying different audio? A
+    mono source moves both columns identically, and Interlace mode then
+    vocodes the signal with itself. */
+class SpyLedColumn : public VSTGUI::CView
+{
+public:
+	SpyLedColumn (const VSTGUI::CRect& size, const std::string& label);
+
+	/** A linear peak. Converted to dB, mapped over the column's range, and
+	    given the ballistics below. Call it at the editor's frame rate; the
+	    release and the peak hold are both counted in frames. */
+	void setLevel (double linearPeak);
+
+	void draw (VSTGUI::CDrawContext* context) override;
+
+	CLASS_METHODS (SpyLedColumn, VSTGUI::CView)
+
+	/** The bottom of the scale. The top is 0 dBFS. */
+	static constexpr double kFloorDb = 60.0;
+	static constexpr int    kSegments = 20;
+
+private:
+	std::string mLabel;
+	double mLevel = 0.0;      // 0..1 up the column
+	double mPeak = 0.0;
+	int    mHold = 0;
+};
+
+//------------------------------------------------------------------------
 /** The band envelope display (IDC_DRAWAREA).
 
     A stepped polyline, one horizontal segment per band, drawn from the

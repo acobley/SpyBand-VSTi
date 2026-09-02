@@ -167,6 +167,8 @@ void Vocoder::reset ()
 	mHighEnvelope = 0.0;
 	mVoicedStore.store (false, std::memory_order_relaxed);
 	mMeterCount.store (0, std::memory_order_release);
+	mSrcPeakL.store (0.0f, std::memory_order_relaxed);
+	mSrcPeakR.store (0.0f, std::memory_order_relaxed);
 	mNoiseEnvTriggered = false;
 
 	mNoiseEnvelope.reset ();
@@ -657,6 +659,8 @@ void Vocoder::process (const Params& params,
 	const bool wasEnabled = mPrevious.enable;
 	if (! params.enable && ! wasEnabled)
 	{
+		const double gain = params.inLevel * 5.0 + 0.00001;
+		float peakL = 0.0f, peakR = 0.0f;
 		for (int f = 0; f < frames; ++f)
 		{
 			const double l = inL ? inL[f] : 0.0;
@@ -664,7 +668,15 @@ void Vocoder::process (const Params& params,
 			outL[f] = static_cast<float> (outR ? l : 0.5 * (l + r));
 			if (outR)
 				outR[f] = static_cast<float> (r);
+
+			// Meter what the taps WOULD see, so the columns keep moving
+			// while the plug-in is bypassed - which is when someone is
+			// most likely looking at them to work out what is arriving.
+			peakL = std::max (peakL, static_cast<float> (std::fabs (l * gain)));
+			peakR = std::max (peakR, static_cast<float> (std::fabs (r * gain)));
 		}
+		mSrcPeakL.store (peakL, std::memory_order_relaxed);
+		mSrcPeakR.store (peakR, std::memory_order_relaxed);
 		mPrevious = params;
 		mHavePrevious = true;
 		return;
@@ -787,6 +799,13 @@ void Vocoder::process (const Params& params,
 	const int bank2 = 2 * bands;
 	bool blockStereo = params.stereo;
 
+	// The two taps the panel's LED columns show. Measured where the L and
+	// R badges are on docs/signal-path.png: straight out of Src Level,
+	// before the noise injection, the override or the interlace split -
+	// so what they read is what arrived, scaled by one control.
+	float peakL = 0.0f;
+	float peakR = 0.0f;
+
 	//--------------------------------------------------------------------
 	for (int f = 0; f < frames; ++f)
 	{
@@ -795,6 +814,9 @@ void Vocoder::process (const Params& params,
 
 		double srcL = (dryL + ditherNoise ()) * inLevel.v;
 		double srcR = (dryR + ditherNoise ()) * inLevel.v;
+
+		peakL = std::max (peakL, static_cast<float> (std::fabs (srcL)));
+		peakR = std::max (peakR, static_cast<float> (std::fabs (srcR)));
 
 		const double pink = noiseValue () * noiseLevel.v;
 
@@ -972,6 +994,9 @@ void Vocoder::process (const Params& params,
 			cell.value += cell.step;
 	}
 
+	mSrcPeakL.store (peakL, std::memory_order_relaxed);
+	mSrcPeakR.store (peakR, std::memory_order_relaxed);
+
 	mLastBlockStereo = blockStereo;
 	mLastBlockBands = bands;
 	mPrevious = params;
@@ -981,6 +1006,13 @@ void Vocoder::process (const Params& params,
 	// envelopeData walks mCells - which the next block will clear.
 	const int count = envelopeData (mMeter);
 	mMeterCount.store (count, std::memory_order_release);
+}
+
+//------------------------------------------------------------------------
+void Vocoder::inputPeaks (float& left, float& right) const
+{
+	left = mSrcPeakL.load (std::memory_order_relaxed);
+	right = mSrcPeakR.load (std::memory_order_relaxed);
 }
 
 //------------------------------------------------------------------------

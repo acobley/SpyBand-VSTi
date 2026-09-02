@@ -703,6 +703,107 @@ void SpyPatchBoard::onMouseWheelEvent (MouseWheelEvent& event)
 }
 
 //------------------------------------------------------------------------
+// SpyLedColumn
+//------------------------------------------------------------------------
+SpyLedColumn::SpyLedColumn (const CRect& size, const std::string& label)
+: CView (size), mLabel (label)
+{
+}
+
+void SpyLedColumn::setLevel (double linearPeak)
+{
+	const double decibels = (linearPeak <= 1e-9)
+		? -(kFloorDb + 30.0)
+		: 20.0 * std::log10 (linearPeak);
+
+	double target = (decibels + kFloorDb) / kFloorDb;
+	target = std::clamp (target, 0.0, 1.0);
+
+	const double was = mLevel;
+	const double wasPeak = mPeak;
+
+	// Instant attack, gentle release: a meter that falls as fast as it
+	// rises is unreadable, and one that falls slowly hides a gate closing.
+	if (target > mLevel)
+		mLevel = target;
+	else
+		mLevel += (target - mLevel) * 0.28;
+
+	// Peak hold, about a second at thirty frames, then it slides down to
+	// meet the bar.
+	if (target >= mPeak)
+	{
+		mPeak = target;
+		mHold = 30;
+	}
+	else if (--mHold <= 0)
+	{
+		mPeak = std::max (mPeak - 0.015, mLevel);
+	}
+
+	if (std::fabs (mLevel - was) > 0.002 || std::fabs (mPeak - wasPeak) > 0.002)
+		invalid ();
+}
+
+void SpyLedColumn::draw (CDrawContext* context)
+{
+	const CRect r = getViewSize ();
+
+	// Room for the label under the column, on the same 11-pixel band the
+	// SlideSpins use.
+	const CCoord labelHeight = mLabel.empty () ? 0. : 13.;
+	const CRect body (r.left, r.top, r.right, r.bottom - labelHeight);
+
+	draw3dRect (context, body, Colours::kLampFrame, Colours::kLampFrame);
+
+	CRect inner (body);
+	inner.inset (2., 2.);
+
+	const CCoord pitch = inner.getHeight () / kSegments;
+	const int litTo = static_cast<int> (mLevel * kSegments + 0.5);
+	const int peakAt = static_cast<int> (mPeak * kSegments + 0.5);
+
+	for (int i = 0; i < kSegments; ++i)
+	{
+		// i counts UP from the bottom.
+		const CCoord top = inner.bottom - (i + 1) * pitch;
+		CRect cell (inner.left, top + 1., inner.right, top + pitch - 1.);
+		if (cell.getHeight () <= 0.)
+			continue;
+
+		CColor colour;
+		if (i >= kSegments - 2)
+			colour = Colours::kLampOn;                      // the last 3 dB
+		else if (i >= kSegments - 5)
+			colour = CColor (255, 190, 40, 255);            // the last 9 dB
+		else
+			colour = Colours::kLabel;                       // the panel's green
+
+		const bool lit = (i < litTo);
+		const bool isPeak = (peakAt > 0 && i == peakAt - 1);
+
+		if (! lit && ! isPeak)
+			colour = CColor (26, 26, 26, 255);              // an unlit LED
+		else if (! lit && isPeak)
+			colour.alpha = 170;                             // the held peak
+
+		context->setFillColor (colour);
+		context->drawRect (cell, kDrawFilled);
+	}
+
+	if (! mLabel.empty ())
+	{
+		context->setFont (panelFont ());
+		context->setFontColor (Colours::kLabel);
+		context->drawString (mLabel.c_str (),
+		                     CRect (r.left, r.bottom - labelHeight, r.right, r.bottom),
+		                     kCenterText, true);
+	}
+
+	setDirty (false);
+}
+
+//------------------------------------------------------------------------
 // SpyBandMeter
 //------------------------------------------------------------------------
 SpyBandMeter::SpyBandMeter (const CRect& size)

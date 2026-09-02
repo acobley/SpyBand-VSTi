@@ -319,12 +319,15 @@ tresult PLUGIN_API SpyBandController::notify (IMessage* message)
 		const void* raw = nullptr;
 		uint32 size = 0;
 		if (message->getAttributes ()->getBinary (kSpyBandMeterAttribute, raw, size) == kResultOk
-		    && raw != nullptr && size >= 2 * sizeof (double))
+		    && raw != nullptr && size >= 4 * sizeof (double))
 		{
 			const double* frame = static_cast<const double*> (raw);
 			mVoiced = (frame[0] >= 0.5);
+			mInputPeak[0] = frame[2];
+			mInputPeak[1] = frame[3];
+
 			int count = static_cast<int> (frame[1]);
-			const int available = static_cast<int> (size / sizeof (double)) - 2;
+			const int available = static_cast<int> (size / sizeof (double)) - 4;
 			if (count > available)
 				count = available;
 			if (count > 2 * kMaxBands)
@@ -332,7 +335,7 @@ tresult PLUGIN_API SpyBandController::notify (IMessage* message)
 			if (count < 0)
 				count = 0;
 			for (int i = 0; i < count; ++i)
-				mMeter[i] = frame[2 + i];
+				mMeter[i] = frame[4 + i];
 			mMeterCount = count;
 		}
 		return kResultOk;

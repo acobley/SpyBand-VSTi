@@ -493,6 +493,61 @@ int main ()
 	}
 
 	//--------------------------------------------------------------------
+	// The input LED columns.
+	//
+	// They read the taps immediately after Src Level, so the peak must be
+	// the input times that control and nothing else - and, the reason they
+	// exist, a MONO source must move both columns identically.
+	//--------------------------------------------------------------------
+	{
+		Vocoder::Params p2 = musicalParams ();
+
+		Vocoder v;
+		v.setSampleRate (sr);
+		v.reset ();
+
+		std::vector<float> inL (2048), inR (2048), outL (2048), outR (2048);
+		for (int i = 0; i < 2048; ++i)
+		{
+			const double t = i / sr;
+			inL[i] = static_cast<float> (0.5 * std::sin (2.0 * M_PI * 220.0 * t));
+			inR[i] = static_cast<float> (0.25 * std::sin (2.0 * M_PI * 1000.0 * t));
+		}
+		const float* in[2] = { inL.data (), inR.data () };
+		float* out[2] = { outL.data (), outR.data () };
+		v.process (p2, in, 2, out, 2, 2048);
+
+		float peakL = 0.f, peakR = 0.f;
+		v.inputPeaks (peakL, peakR);
+
+		// Src Level defaults to 0.2, which the DSP takes as 0.2 * 5 = unity.
+		close (peakL, 0.5, 0.01, "the left column does not read the left input");
+		close (peakR, 0.25, 0.01, "the right column does not read the right input");
+
+		// Halve Src Level and both columns must halve.
+		Vocoder::Params quiet = p2;
+		quiet.inLevel = 0.1;
+		Vocoder v2;
+		v2.setSampleRate (sr);
+		v2.reset ();
+		v2.process (quiet, in, 2, out, 2, 2048);
+		v2.inputPeaks (peakL, peakR);
+		close (peakL, 0.25, 0.01, "Src Level does not scale the left column");
+		close (peakR, 0.125, 0.01, "Src Level does not scale the right column");
+
+		// THE POINT OF THEM: a mono source moves both columns the same,
+		// which is what says "these two channels are the same audio" -
+		// and in Interlace mode that means the signal vocodes itself.
+		Vocoder v3;
+		v3.setSampleRate (sr);
+		v3.reset ();
+		const float* mono[2] = { inL.data (), inL.data () };
+		v3.process (p2, mono, 2, out, 2, 2048);
+		v3.inputPeaks (peakL, peakR);
+		chk (peakL == peakR, "a mono source did not read identically on both columns");
+	}
+
+	//--------------------------------------------------------------------
 	// The meter the editor reads.
 	//--------------------------------------------------------------------
 	{

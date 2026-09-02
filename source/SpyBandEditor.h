@@ -22,6 +22,11 @@
 //   * IDC_MOOG, which IS in the .rc and is not here: it is declared
 //     NOT WS_VISIBLE, the parameter behind it is commented out of
 //     Parameters.h, and the filter it selected is unreachable.
+//
+// The input LED columns are new too, and live in the 48-pixel channel the
+// dialog left empty between its first and second columns of controls.
+// Being new they have no dialog units to convert from, so they are placed
+// in pixels - as ForTran's added panels are.
 //------------------------------------------------------------------------
 
 #pragma once
@@ -95,6 +100,7 @@ private:
 	std::map<Steinberg::Vst::ParamID, VSTGUI::CControl*> mControls;
 
 	SpyFileButton* mFileButtons[Vocoder::kNumSlots] = { nullptr };
+	SpyLedColumn*  mInputMeter[2] = { nullptr, nullptr };
 	SpyPatchBoard* mPatchBoard = nullptr;
 	SpyBandMeter*  mMeter = nullptr;
 	VSTGUI::CTextLabel* mVersion = nullptr;
