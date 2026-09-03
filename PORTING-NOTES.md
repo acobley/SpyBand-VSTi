@@ -254,13 +254,20 @@ nothing.
   jump the value to the pointer. On a control 69 pixels wide an absolute
   drag would make every setting a coarse one. Shift is a fine drag; the
   wheel works.
-* **The two selectors (Bands, Filter Slopes): click to advance**, and it
-  wraps. The DXi had **no click behaviour at all** — its vertical mode
-  needed the pointer to travel 25 pixels before anything happened, on a
-  control **18 pixels tall**, so the control read as dead until you
-  happened to drag it. Reported as "there is a button marked 9 Bands, does
-  it do anything?", which is the correct reaction. The click is purely
-  additional; the drag is untouched.
+* **The two selectors (Bands, Filter Slopes): left click steps DOWN,
+  right click steps UP**, both wrapping, so either button alone reaches
+  every value. Ctrl-click counts as a right click — the macOS convention,
+  and the fallback for a host that keeps the right button for its own
+  menu.
+
+  The DXi had **no click behaviour at all** — its vertical mode needed the
+  pointer to travel 25 pixels before anything happened, on a control
+  **18 pixels tall**, so it read as dead until you happened to drag it.
+  Reported as "there is a button marked 9 Bands, does it do anything?",
+  which is the correct reaction. A single click that advanced was the
+  first attempt and did not feel right in use; two buttons with a
+  direction each did. The clicks are purely additional; the drag is
+  untouched.
 
   The drag still goes the original's way round — **DOWN ADVANCES**,
   because the DXi decremented a counter it reported as `max - count`,

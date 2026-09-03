@@ -155,11 +155,14 @@ private:
 /** A SlideSpin in multi-state mode: an outlined box with the name of the
     current value across it.
 
-    CLICK TO ADVANCE, and it wraps. NOT the DXi, which had no click
-    behaviour at all: its vertical mode needed the pointer to move 25
-    pixels before it did anything, on a control 18 pixels tall, so the
-    control read as dead until you happened to drag it. See PORTING-NOTES
-    section 3.
+    LEFT CLICK STEPS DOWN, RIGHT CLICK STEPS UP, and both wrap. Ctrl-click
+    counts as a right click, which is the macOS convention and a fallback
+    for hosts that keep the right button to themselves.
+
+    NOT the DXi, which had no click behaviour at all: its vertical mode
+    needed the pointer to move 25 pixels before it did anything, on a
+    control 18 pixels tall, so the control read as dead until you happened
+    to drag it. See PORTING-NOTES section 3.
 
     The drag is still there and still works the original's way round -
     DOWN ADVANCES, because the DXi decremented a counter it then reported
@@ -186,6 +189,7 @@ private:
 	std::vector<std::string> mNames;
 	VSTGUI::CCoord mAnchorY = 0.;
 	bool mMoved = false;
+	bool mStepUp = false;
 };
 
 //------------------------------------------------------------------------

@@ -384,8 +384,16 @@ void SpySelector::draw (CDrawContext* context)
 
 void SpySelector::onMouseDownEvent (MouseDownEvent& event)
 {
-	if (! event.buttonState.isLeft ())
+	const bool right = event.buttonState.isRight ()
+	                || event.modifiers.has (ModifierKey::Control);
+
+	if (! event.buttonState.isLeft () && ! right)
 		return;
+
+	// Which way a click without a drag will step. Ctrl counts as a right
+	// click: it is the macOS convention, and it is the fallback for a host
+	// that keeps the right button for its own menu.
+	mStepUp = right;
 	mDragging = true;
 	mMoved = false;
 	mAnchorY = event.mousePosition.y;
@@ -431,17 +439,19 @@ void SpySelector::onMouseUpEvent (MouseUpEvent& event)
 	if (! mDragging)
 		return;
 
-	// A click that did not drag advances one position and wraps. The DXi
-	// had nothing here, which is why the control read as dead: its only
+	// A click that did not drag steps one position: LEFT DOWN, RIGHT UP,
+	// both wrapping, so either button alone can reach every value. The DXi
+	// had nothing here, which is why the control read as dead - its only
 	// way in was a 25-pixel drag on an 18-pixel control. The drag is
 	// untouched; this is purely additional. The same click-versus-drag
 	// test the patch board uses - did the value actually move? - rather
 	// than a timer.
 	if (! mMoved && mNames.size () > 1)
 	{
-		const int last = static_cast<int> (mNames.size ()) - 1;
-		const int index = (currentIndex () + 1) % (last + 1);
-		setValueNormalized (static_cast<float> (index) / static_cast<float> (last));
+		const int positions = static_cast<int> (mNames.size ());
+		const int index = (currentIndex () + (mStepUp ? 1 : positions - 1)) % positions;
+		setValueNormalized (static_cast<float> (index)
+		                    / static_cast<float> (positions - 1));
 		valueChanged ();
 		invalid ();
 	}
