@@ -345,6 +345,26 @@ Level is scaling the sample slots rather than a channel, so they read
 **L+R Src Level** and **Smp Wav Level**. Set in `refresh()` rather than at
 construction, since they depend on a parameter.
 
+### Axis labels on the patch matrix
+
+NEW. The DXi drew a bare grid and left you to work out which way round it
+was, and it is **not guessable**: ROW is the modulator band and runs
+ACROSS, because `PatchBoard::OnLButtonDown` reads the row from x and the
+column from y, and `CSpyBand::Process` multiplies `mod[row] * car[column]`.
+Read it the other way and the whole patch is transposed.
+
+So the grid now carries **modulator IN** across the top and **carrier OUT**
+down the right, the latter a `CTextLabel` with `setTextRotation(90)`.
+
+The x label is left-aligned rather than centred over the grid, because
+File 5 sits above the board's right-hand end and centred text would run
+underneath it. `tools/preview-panel.py` draws both and its overlap check
+knows about them.
+
+Strictly, both axes are inputs to the multiply — the output is the sum of
+the products. The labels name which side is *analysed* and which side is
+*heard*, which is what anyone patching it needs to know.
+
 ### The input LED columns
 
 NEW, and they earned their place by hindsight. They read the two taps

@@ -261,6 +261,42 @@ bool PLUGIN_API SpyBandEditor::open (void* parent, const PlatformType& platformT
 	frame->addView (mPatchBoard);
 
 	//--------------------------------------------------------------------
+	// Axis labels for the matrix.
+	//
+	// NEW - the DXi drew a bare grid and left you to work out which way
+	// round it was, and it is not guessable: ROW is the MODULATOR band and
+	// runs ACROSS, because PatchBoard::OnLButtonDown read the row from x
+	// and the column from y, and CSpyBand::Process multiplies
+	// mod[row] * car[column]. Getting that backwards transposes the whole
+	// patch.
+	//
+	// The x label is left-aligned rather than centred over the grid: File 5
+	// sits above the board's right-hand end, and centred text would run
+	// underneath it.
+	//--------------------------------------------------------------------
+	mAxisX = new CTextLabel (CRect (boardBox.left, boardBox.top - 15,
+	                                boardBox.left + 82, boardBox.top - 1));
+	mAxisX->setText ("modulator IN");
+	mAxisX->setFont (panelFontSmall ());
+	mAxisX->setFontColor (Colours::kLabel);
+	mAxisX->setBackColor (kTransparentCColor);
+	mAxisX->setFrameColor (kTransparentCColor);
+	mAxisX->setStyle (CParamDisplay::kNoFrame);
+	mAxisX->setHoriAlign (kLeftText);
+	frame->addView (mAxisX);
+
+	mAxisY = new CTextLabel (CRect (boardBox.right + 2, boardBox.top,
+	                                boardBox.right + 17, boardBox.bottom));
+	mAxisY->setText ("carrier OUT");
+	mAxisY->setFont (panelFontSmall ());
+	mAxisY->setFontColor (Colours::kLabel);
+	mAxisY->setBackColor (kTransparentCColor);
+	mAxisY->setFrameColor (kTransparentCColor);
+	mAxisY->setStyle (CParamDisplay::kNoFrame);
+	mAxisY->setTextRotation (90.0);
+	frame->addView (mAxisY);
+
+	//--------------------------------------------------------------------
 	// The five file buttons. IDC_FILE1 is 14 units tall in the .rc where
 	// the other four are 17; kept, because it is what the dialog said.
 	//--------------------------------------------------------------------
@@ -310,6 +346,8 @@ void PLUGIN_API SpyBandEditor::close ()
 	for (auto*& column : mInputMeter)
 		column = nullptr;
 	mPatchBoard = nullptr;
+	mAxisX = nullptr;
+	mAxisY = nullptr;
 	mMeter = nullptr;
 	mVersion = nullptr;
 

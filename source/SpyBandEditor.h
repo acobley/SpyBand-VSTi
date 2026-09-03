@@ -102,6 +102,8 @@ private:
 	SpyFileButton* mFileButtons[Vocoder::kNumSlots] = { nullptr };
 	SpyLedColumn*  mInputMeter[2] = { nullptr, nullptr };
 	SpyPatchBoard* mPatchBoard = nullptr;
+	VSTGUI::CTextLabel* mAxisX = nullptr;
+	VSTGUI::CTextLabel* mAxisY = nullptr;
 	SpyBandMeter*  mMeter = nullptr;
 	VSTGUI::CTextLabel* mVersion = nullptr;
 

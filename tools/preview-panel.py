@@ -192,6 +192,21 @@ def led_column(d, box, level, peak, label):
     fitted(d, label, [l, b - label_h, r, b], LABEL)
 
 
+def vertical_text(d, text, x, top, bottom, colour):
+    """Text rotated 90 degrees, reading downwards, and CENTRED in the
+    span - which is what CTextLabel::setTextRotation(90) gives, since a
+    CTextLabel centres its text vertically. Top-aligning it here would
+    make the preview a worse predictor of the panel, which is the one
+    thing this file exists to be."""
+    f = FONTS[1]
+    w = int(d.textlength(text, font=f)) + 4
+    strip = Image.new("RGBA", (w, 16), (0, 0, 0, 0))
+    ImageDraw.Draw(strip).text((2, 1), text, font=f, fill=colour)
+    rotated = strip.rotate(-90, expand=True)
+    y = int(top + ((bottom - top) - rotated.height) / 2)
+    d._image.paste(rotated, (int(x), y), rotated)
+
+
 def meter(d, geometry, values, stereo=False):
     box = rect(*geometry)
     l, t, r, b = box
@@ -236,6 +251,7 @@ def main():
     background = os.path.join(ROOT, "resource", "background.png")
     image = Image.open(background).convert("RGB")
     d = ImageDraw.Draw(image)
+    d._image = image
 
     # ---- left column: the envelope, the levels, and the new trim
     slider(d, (12, 14, 46, 17), "Env  Release", "5", 0.05)
@@ -266,6 +282,11 @@ def main():
     # ---- the new input LED columns, in pixels
     led_column(d, [93, 143, 109, 300], 0.72, 0.80, "L")
     led_column(d, [115, 143, 131, 300], 0.44, 0.52, "R")
+
+    # ---- matrix axis labels: row runs ACROSS and is the modulator
+    board = rect(257, 89, 106, 106 * 1.5 / 1.625)
+    fitted(d, "modulator IN", [board[0], board[1] - 15, board[0] + 82, board[1] - 1], LABEL)
+    vertical_text(d, "carrier OUT", board[2] + 2, board[1], board[3], LABEL)
 
     # ---- displays
     meter(d, (171, 12, 111, 55),
@@ -337,6 +358,8 @@ TOUCHING_PX = 2.0
 PIXEL_BOXES = [
     ("Input LED L", [93, 143, 109, 300]),
     ("Input LED R", [115, 143, 131, 300]),
+    ("Matrix x label", [385.5, 128, 467.5, 142]),
+    ("Matrix y label", [546.5, 143, 561.5, 302]),
 ]
 
 
