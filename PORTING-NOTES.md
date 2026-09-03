@@ -744,10 +744,27 @@ mono/mono — must stay in step with `AudioUnit SupportedNumChannels` in
 
 ---
 
-## 9. Still to do
+## 9. Where it got to, and what is left
 
-* Build it, run Steinberg's validator, and run
-  `auval -v aufx SpyB AECo`.
+**It builds, loads and works.** Confirmed in Reaper, where the vocoder
+behaves as this document describes. It also loads and runs in Logic, which
+is a second result in itself: Logic validates an Audio Unit on scan and
+quarantines anything that fails, so the AU wrapper, the four-character
+codes and the channel layouts in `resource/au-info.plist` are all good.
+
+One caveat recorded because it cost an afternoon and will cost the next
+one too: a **Logic project** gave results that read as a plug-in fault and
+were not. The same build in a fresh Reaper project was correct. Suspected
+routing in that particular project — most likely both channels carrying
+the same audio, which makes Interlace mode vocode the signal with itself
+(§6). **The input LED columns exist because of this**, and they answer it
+in about ten seconds: if the two columns track each other, the channels are
+the same audio and no plug-in setting will make them behave.
+
+Still to do:
+
+* Run Steinberg's validator explicitly, and `auval -v aufx SpyB AECo`, for
+  the record rather than by inference.
 * Factory presets. The DXi's own defaults put all nine bands between
   **26.8 Hz and 51.8 Hz**, so the plug-in is very nearly silent until
   Bottom Freq and Top Freq are moved — 50 % and 92 % gives roughly 100 Hz
