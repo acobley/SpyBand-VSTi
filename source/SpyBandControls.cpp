@@ -332,6 +332,16 @@ void SpyToggle::onMouseUpEvent (MouseUpEvent& event)
 	event.consumed = true;
 }
 
+void SpyToggle::onMouseWheelEvent (MouseWheelEvent& event)
+{
+	// SlideSpin::OnMouseWheel returns immediately for a two-state control,
+	// and so does this. WITHOUT the override the inherited slider wheel
+	// nudges a switch by a hundredth of its travel per click, so it takes
+	// fifty clicks to flip and lands the parameter on values a two-state
+	// control has no business holding.
+	event.consumed = false;
+}
+
 //------------------------------------------------------------------------
 // SpySelector
 //------------------------------------------------------------------------
@@ -377,6 +387,7 @@ void SpySelector::onMouseDownEvent (MouseDownEvent& event)
 	if (! event.buttonState.isLeft ())
 		return;
 	mDragging = true;
+	mMoved = false;
 	mAnchorY = event.mousePosition.y;
 	beginEdit ();
 	event.consumed = true;
@@ -395,11 +406,13 @@ void SpySelector::onMouseMoveEvent (MouseMoveEvent& event)
 	if (event.mousePosition.y > mAnchorY + kSelectorStep)
 	{
 		mAnchorY = event.mousePosition.y;
+		mMoved = true;
 		index = std::min (index + 1, last);
 	}
 	else if (event.mousePosition.y < mAnchorY - kSelectorStep)
 	{
 		mAnchorY = event.mousePosition.y;
+		mMoved = true;
 		index = std::max (index - 1, 0);
 	}
 	else
@@ -417,8 +430,56 @@ void SpySelector::onMouseUpEvent (MouseUpEvent& event)
 {
 	if (! mDragging)
 		return;
+
+	// A click that did not drag advances one position and wraps. The DXi
+	// had nothing here, which is why the control read as dead: its only
+	// way in was a 25-pixel drag on an 18-pixel control. The drag is
+	// untouched; this is purely additional. The same click-versus-drag
+	// test the patch board uses - did the value actually move? - rather
+	// than a timer.
+	if (! mMoved && mNames.size () > 1)
+	{
+		const int last = static_cast<int> (mNames.size ()) - 1;
+		const int index = (currentIndex () + 1) % (last + 1);
+		setValueNormalized (static_cast<float> (index) / static_cast<float> (last));
+		valueChanged ();
+		invalid ();
+	}
+
 	mDragging = false;
+	mMoved = false;
 	endEdit ();
+	event.consumed = true;
+}
+
+void SpySelector::onMouseWheelEvent (MouseWheelEvent& event)
+{
+	// ONE STEP PER CLICK, which is what SlideSpin::OnMouseWheel did:
+	// `count--` or `count++`, a whole position at a time.
+	//
+	// Without this the inherited slider wheel moved a hundredth of the
+	// control's travel per click - and a four-position selector's step is
+	// a THIRD of its travel, so it took seventeen clicks to change from
+	// 9 Bands to 12 and left the parameter on values between the steps.
+	// Wheel up raises the value, as it did.
+	if (mNames.size () < 2)
+		return;
+
+	const int last = static_cast<int> (mNames.size ()) - 1;
+	int index = currentIndex ();
+
+	if (event.deltaY > 0.)
+		index = std::min (index + 1, last);
+	else if (event.deltaY < 0.)
+		index = std::max (index - 1, 0);
+	else
+		return;
+
+	beginEdit ();
+	setValueNormalized (static_cast<float> (index) / static_cast<float> (last));
+	valueChanged ();
+	endEdit ();
+	invalid ();
 	event.consumed = true;
 }
 
@@ -481,6 +542,12 @@ void SpyFileButton::onMouseMoveEvent (MouseMoveEvent& event)
 void SpyFileButton::onMouseUpEvent (MouseUpEvent& event)
 {
 	event.consumed = true;
+}
+
+void SpyFileButton::onMouseWheelEvent (MouseWheelEvent& event)
+{
+	// A slot enable is two-state, so the same applies as for SpyToggle.
+	event.consumed = false;
 }
 
 //------------------------------------------------------------------------

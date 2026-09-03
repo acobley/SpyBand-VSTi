@@ -143,6 +143,7 @@ public:
 	void onMouseDownEvent (VSTGUI::MouseDownEvent& event) override;
 	void onMouseMoveEvent (VSTGUI::MouseMoveEvent& event) override;
 	void onMouseUpEvent (VSTGUI::MouseUpEvent& event) override;
+	void onMouseWheelEvent (VSTGUI::MouseWheelEvent& event) override;
 
 	CLASS_METHODS (SpyToggle, SpySlider)
 
@@ -154,12 +155,16 @@ private:
 /** A SlideSpin in multi-state mode: an outlined box with the name of the
     current value across it.
 
-    DRAG DOWN TO ADVANCE. The DXi's vertical mode decremented its internal
-    counter when the pointer moved DOWN by 25 pixels, and the value it
-    reported was `max - count`, so dragging down raised the value. That is
-    the opposite of the usual convention and it is preserved - see the
-    vertical-slider note in the porting guide. The wheel works the usual
-    way round, as it did. */
+    CLICK TO ADVANCE, and it wraps. NOT the DXi, which had no click
+    behaviour at all: its vertical mode needed the pointer to move 25
+    pixels before it did anything, on a control 18 pixels tall, so the
+    control read as dead until you happened to drag it. See PORTING-NOTES
+    section 3.
+
+    The drag is still there and still works the original's way round -
+    DOWN ADVANCES, because the DXi decremented a counter it then reported
+    as `max - count`, which is the opposite of the usual convention and is
+    preserved. The wheel advances upwards, one position per click. */
 class SpySelector : public SpySlider
 {
 public:
@@ -171,6 +176,7 @@ public:
 	void onMouseDownEvent (VSTGUI::MouseDownEvent& event) override;
 	void onMouseMoveEvent (VSTGUI::MouseMoveEvent& event) override;
 	void onMouseUpEvent (VSTGUI::MouseUpEvent& event) override;
+	void onMouseWheelEvent (VSTGUI::MouseWheelEvent& event) override;
 
 	CLASS_METHODS (SpySelector, SpySlider)
 
@@ -179,6 +185,7 @@ private:
 
 	std::vector<std::string> mNames;
 	VSTGUI::CCoord mAnchorY = 0.;
+	bool mMoved = false;
 };
 
 //------------------------------------------------------------------------
@@ -202,6 +209,7 @@ public:
 	void onMouseDownEvent (VSTGUI::MouseDownEvent& event) override;
 	void onMouseMoveEvent (VSTGUI::MouseMoveEvent& event) override;
 	void onMouseUpEvent (VSTGUI::MouseUpEvent& event) override;
+	void onMouseWheelEvent (VSTGUI::MouseWheelEvent& event) override;
 
 	CLASS_METHODS (SpyFileButton, SpySlider)
 

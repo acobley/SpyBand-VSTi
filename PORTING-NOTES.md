@@ -254,12 +254,18 @@ nothing.
   jump the value to the pointer. On a control 69 pixels wide an absolute
   drag would make every setting a coarse one. Shift is a fine drag; the
   wheel works.
-* **The two selectors (Bands, Filter Slopes): drag DOWN to advance.** The
-  DXi's vertical mode decremented its counter when the pointer moved down
-  by 25 pixels and reported `max - count`, so down raised the value. That is
-  the opposite of the usual convention and it is kept — the porting guide's
-  warning about vertical sliders, in reverse. The wheel is the normal way
-  round, as it was.
+* **The two selectors (Bands, Filter Slopes): click to advance**, and it
+  wraps. The DXi had **no click behaviour at all** — its vertical mode
+  needed the pointer to travel 25 pixels before anything happened, on a
+  control **18 pixels tall**, so the control read as dead until you
+  happened to drag it. Reported as "there is a button marked 9 Bands, does
+  it do anything?", which is the correct reaction. The click is purely
+  additional; the drag is untouched.
+
+  The drag still goes the original's way round — **DOWN ADVANCES**,
+  because the DXi decremented a counter it reported as `max - count`,
+  which is the opposite of the usual convention and is preserved. The
+  porting guide's warning about vertical sliders, in reverse.
 * **The patch board**: 25 pixels per hundredth, down reduces, floor 0.01 —
   a cell cannot be dragged to silence, only made very quiet. A click that
   did not drag toggles the cell, restoring what it was worth when it was
@@ -269,6 +275,30 @@ nothing.
   20 ms timer: fewer than 50 ticks and the click counted as a click, which
   is a **full second** of grace. Whether the drag actually moved the value
   is a better test and needs no timer.
+
+### Two wheels that were mine, not the DXi's
+
+Found while answering "does the 9 Bands button do anything?", and both were
+defects introduced by this port rather than behaviour carried across.
+
+`SlideSpin::OnMouseWheel` moved a **whole position** per click
+(`count--` / `count++`) and returned immediately for a two-state control.
+Neither `SpySelector` nor `SpyToggle` overrode the wheel, so both inherited
+the *slider's* wheel, which moves a hundredth of the control's travel:
+
+* a four-position selector's step is a **third** of its travel, so it took
+  **seventeen clicks** to get from 9 Bands to 12 — and left the parameter
+  sitting on values between the steps;
+* a two-state switch took **fifty clicks** to flip, where the original
+  ignored the wheel entirely.
+
+Both now do what `SlideSpin` did. `SpyFileButton` had inherited the same
+fault on its slot enable and is fixed with it.
+
+The lesson generalises, and it is the guide's own: a control class that
+inherits its behaviour inherits the behaviour that suited its *parent*.
+Overriding the drawing and the clicks while silently keeping the wheel is
+exactly the kind of gap that no compiler and no validator will mention.
 
 ### The file buttons
 
