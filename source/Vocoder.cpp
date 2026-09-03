@@ -330,8 +330,13 @@ void Vocoder::setFilterConstants ()
 // One band. `filtNum` selects the state, `band` the coefficients, so the
 // same band can filter the carrier and the modulator independently.
 //
-// Two or three identical sections in series when Filter Slopes is up:
-// 12, 24 or 36 dB/octave skirts.
+// Two or three identical sections in series when Filter Slopes is up.
+//
+// A two-pole bandpass has 6 dB/octave skirts, not 12, so cascading gives
+// 6, 12 and 18 - measured at 8, 16 and 24 dB across the octave from one to
+// two octaves out, approaching those asymptotes. The centre gain does NOT
+// change: these are constant-0dB-peak sections, so all three settings peak
+// in the same place and only the width moves, Q 7.8 -> 12.0 -> 15.2.
 //------------------------------------------------------------------------
 double Vocoder::bandpass (double in, int filtNum, int band)
 {

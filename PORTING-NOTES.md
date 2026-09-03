@@ -136,7 +136,32 @@ the kind of thing that looks like an off-by-one when you meet it later.
 The same story: `MPT_FLOAT` 0–100 in the table, read as
 `GetParamValue(...) * 100 + 0.5` and truncated (`SpyBand.cpp:466`), and
 only 0, 1 and 2 do anything. Three steps: Shallow, Medium, Steep — one, two
-or three cascaded biquad sections, so 12, 24 or 36 dB per octave.
+or three cascaded biquad sections.
+
+**Corrected after measuring**: this file first said 12, 24 and 36 dB per
+octave, which was wrong — a two-pole bandpass has **6 dB/octave** skirts,
+not 12, so the three settings give **6, 12 and 18**. Sweeping a carrier
+through band 4 of 9, with a single matrix cell open so only that band
+reaches the output:
+
+| from the centre | Shallow | Medium | Steep |
+|---|---:|---:|---:|
+| ±0.25 octave | −9.2 dB | −18.4 dB | −27.5 dB |
+| ±1 octave | −21.3 dB | −42.6 dB | −63.9 dB |
+| ±2 octaves | −29.2 dB | −58.6 dB | −87.8 dB |
+
+and the sections being constant-0dB-peak, **the centre gain does not
+change** — all three peak at the same 3.4 dB and only the width moves:
+
+| | −3 dB width | Q |
+|---|---:|---:|
+| Shallow | 68 Hz | 7.8 |
+| Medium | 44 Hz | 12.0 |
+| Steep | 35 Hz | 15.2 |
+
+So the control trades band overlap for separation rather than making
+anything louder or quieter at the centre. Steep is about 5 dB down overall
+on broadband material (§5) purely because narrower bands pass less.
 
 ### DEVIATION 4 — the patch matrix defaults to its diagonal
 
