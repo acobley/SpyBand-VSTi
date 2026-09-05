@@ -175,7 +175,16 @@ again — that is the manifest guard doing its job.
   from the DXi with the measurement that settled it, and the traps. This is
   the file to read before changing any of the DSP.
 
-## Credits
+## Credits and licence
 
-SpyBand, A. E. Cobley, 2004 and 2026. VST is a trademark of Steinberg Media
-Technologies GmbH.
+SpyBand, A. E. Cobley, 2004 and 2026.
+
+Copyright 2004, 2026 A. E. Cobley. Licensed under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — see
+[`LICENSE`](LICENSE). Credit it, and share anything you build on it under the
+same terms.
+
+The Steinberg VST3 SDK and VSTGUI are not covered by that: they are fetched
+into `external/` at configure time and carry their own licence terms.
+
+VST is a trademark of Steinberg Media Technologies GmbH.
