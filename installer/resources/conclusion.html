@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8">
+<style>
+  body { font: 13px -apple-system, "Helvetica Neue", sans-serif; margin: 0; color: #1d1d1f; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  p  { margin: 0 0 10px; line-height: 1.45; }
+  ul { margin: 0 0 10px 18px; padding: 0; line-height: 1.45; }
+  .note { color: #6e6e73; }
+</style>
+</head>
+<body>
+
+<h2>Installed</h2>
+
+<p>Start your DAW and rescan its plug-ins if it does not do that by itself.
+SpyBand appears as an <b>effect</b> by A. E. Cobley.</p>
+
+<p>Three deliberate behaviours, so none of them reads as a fault:</p>
+
+<ul>
+  <li><b>Your input is the carrier, not the modulator.</b> This is the reverse
+      of the vocoder everyone has used: your signal is the thing being
+      <i>shaped</i>, and the loaded .wav files &mdash; or the right input
+      channel &mdash; do the shaping. So the input stays audible in the
+      output. That is the plug-in working, not leaking.</li>
+  <li><b>It is nearly silent until you move the frequency controls.</b> Bottom
+      Freq and Top Freq start at 1&nbsp;% and 2&nbsp;%, which puts every band
+      between 26.8&nbsp;Hz and 51.8&nbsp;Hz. These are the original DXi&rsquo;s
+      own defaults, kept deliberately. Try Bottom Freq around 50&nbsp;% and Top
+      Freq around 92&nbsp;%.</li>
+  <li><b>Interlace mode needs a genuinely stereo input.</b> It makes the left
+      channel the carrier and the right the modulator. Fed a mono source, the
+      signal becomes its own modulator, which sounds like harsh distortion.
+      Watch the two LED columns: if they move together, the source is mono and
+      no setting will help.</li>
+</ul>
+
+<p class="note">SpyBand is free software under CC&nbsp;BY-SA&nbsp;4.0.
+Copyright &copy; 2004, 2026 A. E. Cobley.</p>
+
+</body>
+</html>
