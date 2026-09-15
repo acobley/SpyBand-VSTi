@@ -96,7 +96,7 @@ Taken from the finished, notarised and **stapled** package — stapling changes
 the bytes, so a checksum taken before it does not match what you downloaded.
 
 ```
-__SHA256__  SpyBand-1.0.0.1.pkg
+126095b5f46904b22c519e8bcf0e51cd7236a421291850cdacb4d662c657696a  SpyBand-1.0.0.1.pkg
 ```
 
 ---
