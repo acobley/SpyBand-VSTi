@@ -11,6 +11,7 @@
 
 set -e
 cd "$(dirname "$0")"
+ROOT="$(cd .. && pwd)"
 
 SDK="../external/vst3sdk"
 if [ ! -d "$SDK" ]; then
@@ -49,5 +50,22 @@ if [ -n "$SDK" ] && [ -d "$SDK" ]; then
 else
 	echo "--- parameters: SKIPPED (no VST3 SDK; set VST3_SDK_ROOT)"
 fi
+
+#-----------------------------------------------------------------------------
+# The release kit: the version and maker's name agree everywhere, and the
+# release scripts' own refusals still refuse. None of this needs a Mac.
+#-----------------------------------------------------------------------------
+printf '\n===== check-versions\n'
+python3 "$ROOT/tools/check-versions.py" || status=1
+for t in test-build-release test-publish test-guards; do
+	printf '\n===== installer/%s\n' "$t"
+	if [ -x "$ROOT/installer/$t.sh" ]; then
+		"$ROOT/installer/$t.sh" || status=1
+	else
+		# A script that will not run is not a check that passed.
+		echo "NOT EXECUTABLE: installer/$t.sh - chmod +x installer/*.sh"
+		status=1
+	fi
+done
 
 exit $status
