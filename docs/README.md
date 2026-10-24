@@ -21,7 +21,21 @@ band display — is drawn as a **tap**: dashed box, dotted feed, hanging off
 a wire rather than sitting in it. Nothing drawn that way is in the audio
 path.
 
-**panel-preview.png** — the editor's layout, rendered by
+**editor-bands.png, editor-bands-drag.png, editor-matrix.png,
+editor-input.png** — the editor as it is now: the black panel design
+(`Designs/SpyBand-Polivoks-1-BlackPanel.png`), drawn by the plug-in's
+own SpyBandEditor and SpyBandController into VSTGUI's cairo offscreen
+context, with no window and no host. The controller is fed one made-up
+meter frame and three generated .wav files so the meters and slots have
+something to show. Regenerate after any change to the panel:
+
+    tools/render-editor/build.sh          # Linux; writes into docs/
+
+It needs only a C++ compiler and cairo's headers. On a Mac, build the
+plug-in and look at it in a host instead.
+
+**panel-preview.png** — the FIRST editor's layout (main, before Design2),
+rendered by
 `tools/preview-panel.py` straight from the dialog units in the DXi's
 `SpyBand.rc`. It is not a screenshot and it is not a mock-up: the script
 runs the same two scale factors the editor does and draws each control the

@@ -47,8 +47,13 @@ if [ -n "$SDK" ] && [ -d "$SDK" ]; then
 	$CXX $FLAGS -I"$SDK" ../source/SpyBandParams.cpp ../source/BandLayout.cpp \
 		ParamTableTests.cpp -o "$OUT/param-tests"
 	run "parameters" "$OUT/param-tests"
+
+	$CXX $FLAGS -I"$SDK" ../source/SciFiLettering.cpp ../source/SpyBandPresets.cpp \
+		../source/SpyBandParams.cpp ../source/BandLayout.cpp \
+		PanelTests.cpp -o "$OUT/panel-tests"
+	run "panel" "$OUT/panel-tests"
 else
-	echo "--- parameters: SKIPPED (no VST3 SDK; set VST3_SDK_ROOT)"
+	echo "--- parameters, panel: SKIPPED (no VST3 SDK; set VST3_SDK_ROOT)"
 fi
 
 #-----------------------------------------------------------------------------

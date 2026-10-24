@@ -202,24 +202,35 @@ int main ()
 	//--------------------------------------------------------------------
 	// The output trim.
 	//
-	// The top of the travel must be EXACTLY the DXi's staging, or the port
-	// is quieter than the original at full and something has been lost.
+	// 0 dB must be EXACTLY the DXi's staging, or the port is quieter than
+	// the original and something has been lost. Above it, +6 dB of make-up.
 	//--------------------------------------------------------------------
-	close (outputGain (1.0), 1.0, "the top of the trim is not unity", "trim");
-	close (outputDecibels (1.0), 0.0, "the top of the trim is not 0 dB", "trim");
-	close (outputGain (0.0), std::pow (10.0, -kOutputRangeDb / 20.0),
-	       "the bottom of the trim is not -60 dB", "trim");
+	close (outputDecibels (1.0), 6.0, "the top of the trim is not +6 dB", "trim");
+	close (outputGain (1.0), std::pow (10.0, 6.0 / 20.0), "the top of the trim is not +6 dB gain", "trim");
+	close (outputGain (outputControlFromDb (0.0)), 1.0, "0 dB on the trim is not unity", "trim");
+	close (outputDecibels (0.0), -60.0, "the bottom of the trim is not -60 dB", "trim");
+	close (outputGain (0.0), std::pow (10.0, -60.0 / 20.0),
+	       "the bottom of the trim is not -60 dB gain", "trim");
 
 	const ParamDef& trim = kParams[kOutputTrim];
+	close (trim.plainMax, 6.0, "the trim's plain range does not reach +6 dB", "trim");
 	close (trim.plainDefault, -20.0, "the trim does not default to -20 dB", "trim");
 	close (outputDecibels (trim.toInternal (trim.defaultNormalized ())), -20.0,
 	       "the trim's default does not reach the DSP as -20 dB", "trim");
 	close (outputGain (trim.toInternal (trim.defaultNormalized ())), 0.1,
 	       "-20 dB is not a tenth", "trim");
+	for (double n = 0.0; n <= 1.0; n += 0.125)
+		close (trim.toPlain (n), outputDecibels (trim.toInternal (n)),
+		       "the host's dB and the DSP's dB disagree", "trim");
 
-	for (double db = -60.0; db <= 0.0; db += 7.5)
+	for (double db = -60.0; db <= 6.0; db += 5.5)
 		close (outputDecibels (outputControlFromDb (db)), db,
 		       "dB does not round-trip through the control", "trim");
+
+	// State version 1 stored the trim on a -60..0 dB travel.
+	for (double v1 = 0.0; v1 <= 1.0; v1 += 0.125)
+		close (outputDecibels (outputControlFromV1State (v1)), -60.0 + 60.0 * v1,
+		       "a version 1 trim does not keep its dB", "trim");
 
 	std::printf (fails ? "\n%d FAILURES\n" : "\nall parameter checks passed\n", fails);
 	return fails ? 1 : 0;

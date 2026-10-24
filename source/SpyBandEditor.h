@@ -1,44 +1,32 @@
 //------------------------------------------------------------------------
 // SpyBand - editor
 //
-// Recreates IDD_PROPPAGE from SpyBand.rc. The dialog is 378 x 217 dialog
-// units in MS Sans Serif 8pt, and the scale is settled by the background
-// static alone: 376 x 217 DLU holding a 564 x 353 bitmap gives
+// Implements Designs/SpyBand-Polivoks-1-BlackPanel.png: Concept 6's
+// layout redressed as R2Synth's black panel - white printing on matte
+// black, knurled knobs, rotary selectors, OLED screens, and the Studio
+// Worn wear. 1200 x 690. The picture of the layout, and every position,
+// is in SpyBandLayout.h.
 //
-//     x_px = x_dlu * 1.5        y_px = (y_dlu - 1) * 1.625
+// Nothing here maps a parameter differently from the Concept 6 editor:
+// the ids, ranges and readouts are the parameter table's.
 //
-// (the -1 because the static sits one unit down, and this editor draws the
-// artwork at the origin instead of reproducing that margin). Every
-// position below came out of tools/rc-geometry.py; none was placed by eye.
-//
-// The canvas is the bitmap: 564 x 353. The Windows dialog was 567 x 353
-// and clipped the last millimetre of its own backdrop.
-//
-// Two things are NOT from the .rc:
-//
-//   * Output Trim, which is new - see PORTING-NOTES section 5. It goes in
-//     the empty bottom-left corner, on the same rhythm as the column above
-//     it.
-//   * IDC_MOOG, which IS in the .rc and is not here: it is declared
-//     NOT WS_VISIBLE, the parameter behind it is commented out of
-//     Parameters.h, and the filter it selected is unreachable.
-//
-// The input LED columns are new too, and live in the 48-pixel channel the
-// dialog left empty between its first and second columns of controls.
-// Being new they have no dialog units to convert from, so they are placed
-// in pixels - as ForTran's added panels are.
+// The layout is built in buildViews(), separately from open(), so that
+// tools/render-editor can draw the real editor into a PNG on a machine
+// with no window - which is how the panel is checked against the design.
 //------------------------------------------------------------------------
 
 #pragma once
 
 #include "SpyBandControls.h"
 #include "SpyBandParams.h"
+#include "SpyBandPresets.h"
 #include "Vocoder.h"
 
 #include "public.sdk/source/vst/vstguieditor.h"
 
 #include <map>
 #include <string>
+#include <vector>
 
 namespace SpyBand {
 
@@ -65,47 +53,91 @@ public:
 	void beginPatchEdit (int row, int column) SMTG_OVERRIDE;
 	void setPatchValue (int row, int column, double value) SMTG_OVERRIDE;
 	void endPatchEdit (int row, int column) SMTG_OVERRIDE;
+	double restoreValue (int row, int column) const SMTG_OVERRIDE;
+	void setRestoreValue (int row, int column, double value) SMTG_OVERRIDE;
+	std::string bandLabel (int index) const SMTG_OVERRIDE;
 
 	/** The controller's setParamNormalized reaches the panel through here. */
 	void updateControl (Steinberg::Vst::ParamID tag, Steinberg::Vst::ParamValue normalized);
 
-	static constexpr int kEditorWidth  = 564;
-	static constexpr int kEditorHeight = 353;
+	/** Build every view into `frame`, and run one refresh. open() calls
+	    this; so does tools/render-editor, with a frame it never opens. */
+	void buildViews (VSTGUI::CFrame* target);
+
+	/** Choose the display's tab: 0 Matrix, 1 Bands, 2 Input. */
+	void selectTab (int index);
+
+	/** Everything the timer does: meters, readouts, labels. */
+	void refresh ();
+
+	static constexpr int kEditorWidth  = 1200;
+	static constexpr int kEditorHeight = 690;
 
 private:
-	VSTGUI::CBitmap* bitmap (const char* name);
-
-	/** Every position is given in DIALOG UNITS, exactly as the .rc has
-	    them, and converted here - so a position in this file can be
-	    checked against the .rc line it came from without arithmetic. */
-	VSTGUI::CRect fromDlu (double x, double y, double w, double h) const;
-
 	void registerControl (Steinberg::Vst::ParamID tag, VSTGUI::CControl* control);
 
-	SpySlider*   addSlider (Steinberg::Vst::ParamID tag, const char* label,
-	                        double x, double y, double w, double h);
-	SpyToggle*   addToggle (Steinberg::Vst::ParamID tag,
-	                        double x, double y, double w, double h);
-	SpySelector* addSelector (Steinberg::Vst::ParamID tag, const char* const* names,
-	                          int count, double x, double y, double w, double h);
-	void addFileButton (int slot, double x, double y, double w, double h);
+	/** The knob and selector for `tag`, from Layout::kKnobs and
+	    kSelectors, with their wear. */
+	SpyKnob* addKnob (Steinberg::Vst::ParamID tag);
+	SpySelector* addSelector (Steinberg::Vst::ParamID tag);
 
-	/** The timer's work: everything the DXi's OnTimer did, which is
-	    everything the panel shows that is not a parameter. */
-	void refresh ();
+	void buildHeader ();
+	void buildModulator ();
+	void buildCentre ();
+	void buildRight ();
+
+	void chooseFile (int slot);
+	void showSlotMenu (int slot);
+	void showPresetMenu ();
+	void stepPreset (int delta);
+	void savePreset ();
+	void applyPattern (Pattern pattern);
+	/** Carry the matrix from `from` bands to `to` - see refitMatrix. */
+	void refitMatrixToBands (int from, int to);
+
+	/** Drag on the band display: which 0 = Bottom, 1 = Top. */
+	void dragBandEdge (int which, double hz, int phase);
+
+	double paramInternal (Steinberg::Vst::ParamID id) const;
+	int currentBands () const;
+	void edited ();
 
 	SpyBandController* mController = nullptr;
 
-	std::map<std::string, VSTGUI::SharedPointer<VSTGUI::CBitmap>> mBitmaps;
 	std::map<Steinberg::Vst::ParamID, VSTGUI::CControl*> mControls;
+	std::vector<SpyKnob*> mKnobs;
 
-	SpyFileButton* mFileButtons[Vocoder::kNumSlots] = { nullptr };
-	SpyLedColumn*  mInputMeter[2] = { nullptr, nullptr };
-	SpyPatchBoard* mPatchBoard = nullptr;
-	VSTGUI::CTextLabel* mAxisX = nullptr;
-	VSTGUI::CTextLabel* mAxisY = nullptr;
-	SpyBandMeter*  mMeter = nullptr;
-	VSTGUI::CTextLabel* mVersion = nullptr;
+	SpySlotRow* mSlots[Vocoder::kNumSlots] = { nullptr };
+	SpyTabs* mTabs = nullptr;
+	SpyBandsDisplay* mBandsDisplay = nullptr;
+	SpyPinBoard* mBigBoard = nullptr;
+	SpyPinBoard* mPanelBoard = nullptr;
+	std::vector<VSTGUI::CView*> mInputPage;
+	SpyLevelBar* mInputBar[2] = { nullptr, nullptr };
+	SpyLevelBar* mInputBarBig[2] = { nullptr, nullptr };
+	SpyCorrelationLamp* mCorrelation = nullptr;
+	SpyCorrelationLamp* mCorrelationBig = nullptr;
+	SpyLabel* mRateLabel = nullptr;
+	SpyOutMeter* mOutMeter = nullptr;
+	SpyLabel* mMatrixSize = nullptr;
+	SpyLabel* mPinCount = nullptr;
+	SpyLabel* mOffDiagonal = nullptr;
+	SpyButton* mPatternButtons[4] = { nullptr, nullptr, nullptr, nullptr };
+	SpyPresetBox* mPresetBox = nullptr;
+	SpyPill* mVersionPill = nullptr;
+	SpyLamp* mVoicedLamp = nullptr;
+	SpyLabel* mMatrixCaption = nullptr;
+	SpyLabel* mCorrReading = nullptr;
+
+	/** The band count when a turn of the BANDS selector began. */
+	int mBandsBeforeEdit = 0;
+
+	unsigned mLastMeterFrames = 0;
+	int mFramesSinceMeter = 0;
+
+	/** What a cell goes back to when switched on again - see
+	    IPatchBoardListener::restoreValue. Shared by both boards. */
+	double mRestore[kPatchCells];
 
 	VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> mTimer;
 };

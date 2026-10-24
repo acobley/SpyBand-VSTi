@@ -60,7 +60,7 @@ static Vocoder::Params musicalParams ()
 	p.interlaced = true;          // right channel modulates left, no file needed
 	p.freq = 0.50;                // bottom band near 100 Hz
 	p.freqSpread = 0.75;          // top band near 1.5 kHz
-	p.outputTrim = 1.0;           // the DXi's own staging, so nothing is hidden
+	p.outputTrim = outputControlFromDb (0.0);   // the DXi's own staging, so nothing is hidden
 	for (int i = 0; i < kMaxBands; ++i)
 		p.patch[i * kMaxBands + i] = 1.0;
 	return p;

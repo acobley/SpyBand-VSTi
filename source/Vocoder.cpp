@@ -647,6 +647,7 @@ void Vocoder::process (const Params& params,
 
 	if (! mHavePrevious)
 		mPrevious = params;
+	mLastBlockFrames = frames;
 
 	const float* inL = (in != nullptr && inChannels > 0) ? in[0] : nullptr;
 	const float* inR = (in != nullptr && inChannels > 1) ? in[1] : inL;
@@ -665,6 +666,8 @@ void Vocoder::process (const Params& params,
 	if (! params.enable && ! wasEnabled)
 	{
 		float peakL = 0.0f, peakR = 0.0f;
+		float outPeakL = 0.0f, outPeakR = 0.0f;
+		double sumLR = 0.0, sumLL = 0.0, sumRR = 0.0;
 		for (int f = 0; f < frames; ++f)
 		{
 			const double l = inL ? inL[f] : 0.0;
@@ -678,9 +681,15 @@ void Vocoder::process (const Params& params,
 			// work out what is arriving.
 			peakL = std::max (peakL, static_cast<float> (std::fabs (l)));
 			peakR = std::max (peakR, static_cast<float> (std::fabs (r)));
+			sumLR += l * r;
+			sumLL += l * l;
+			sumRR += r * r;
+			outPeakL = std::max (outPeakL, std::fabs (outL[f]));
+			outPeakR = std::max (outPeakR, outR ? std::fabs (outR[f]) : std::fabs (outL[f]));
 		}
 		mSrcPeakL.store (peakL, std::memory_order_relaxed);
 		mSrcPeakR.store (peakR, std::memory_order_relaxed);
+		storeBlockStats (sumLR, sumLL, sumRR, outPeakL, outPeakR);
 		mPrevious = params;
 		mHavePrevious = true;
 		return;
@@ -810,6 +819,12 @@ void Vocoder::process (const Params& params,
 	float peakL = 0.0f;
 	float peakR = 0.0f;
 
+	// The same tap again, for the Input Check panel's correlation, and the
+	// output for its OUT meter.
+	double sumLR = 0.0, sumLL = 0.0, sumRR = 0.0;
+	float outPeakL = 0.0f;
+	float outPeakR = 0.0f;
+
 	//--------------------------------------------------------------------
 	for (int f = 0; f < frames; ++f)
 	{
@@ -840,6 +855,9 @@ void Vocoder::process (const Params& params,
 		// the same audio - which is the failure they exist to catch.
 		peakL = std::max (peakL, static_cast<float> (std::fabs (dryL)));
 		peakR = std::max (peakR, static_cast<float> (std::fabs (dryR)));
+		sumLR += dryL * dryR;
+		sumLL += dryL * dryL;
+		sumRR += dryR * dryR;
 
 		const double pink = noiseValue () * noiseLevel.v;
 
@@ -1000,10 +1018,14 @@ void Vocoder::process (const Params& params,
 		{
 			outL[f] = static_cast<float> (mixL);
 			outR[f] = static_cast<float> (mixR);
+			outPeakL = std::max (outPeakL, std::fabs (outL[f]));
+			outPeakR = std::max (outPeakR, std::fabs (outR[f]));
 		}
 		else
 		{
 			outL[f] = static_cast<float> (0.5 * (mixL + mixR));
+			outPeakL = std::max (outPeakL, std::fabs (outL[f]));
+			outPeakR = outPeakL;
 		}
 
 		inLevel.step ();
@@ -1019,6 +1041,7 @@ void Vocoder::process (const Params& params,
 
 	mSrcPeakL.store (peakL, std::memory_order_relaxed);
 	mSrcPeakR.store (peakR, std::memory_order_relaxed);
+	storeBlockStats (sumLR, sumLL, sumRR, outPeakL, outPeakR);
 
 	mLastBlockStereo = blockStereo;
 	mLastBlockBands = bands;
@@ -1029,6 +1052,42 @@ void Vocoder::process (const Params& params,
 	// envelopeData walks mCells - which the next block will clear.
 	const int count = envelopeData (mMeter);
 	mMeterCount.store (count, std::memory_order_release);
+}
+
+//------------------------------------------------------------------------
+// The correlation coefficient of the two input channels over one block.
+//
+// Below about -80 dBFS RMS on either channel there is nothing to compare,
+// and a coefficient computed from dither alone would flicker anywhere
+// between -1 and +1 - so that block reports "no reading" instead.
+//------------------------------------------------------------------------
+void Vocoder::storeBlockStats (double sumLR, double sumLL, double sumRR,
+                               float outPeakL, float outPeakR)
+{
+	float correlation = kNoCorrelation;
+	const double floor = 1e-8;   // -80 dB, as a mean square
+	if (mLastBlockFrames > 0)
+	{
+		const double n = static_cast<double> (mLastBlockFrames);
+		if (sumLL / n > floor && sumRR / n > floor)
+		{
+			double c = sumLR / std::sqrt (sumLL * sumRR);
+			if (c > 1.0)
+				c = 1.0;
+			if (c < -1.0)
+				c = -1.0;
+			correlation = static_cast<float> (c);
+		}
+	}
+	mCorrelation.store (correlation, std::memory_order_relaxed);
+	mOutPeakL.store (outPeakL, std::memory_order_relaxed);
+	mOutPeakR.store (outPeakR, std::memory_order_relaxed);
+}
+
+void Vocoder::outputPeaks (float& left, float& right) const
+{
+	left = mOutPeakL.load (std::memory_order_relaxed);
+	right = mOutPeakR.load (std::memory_order_relaxed);
 }
 
 //------------------------------------------------------------------------

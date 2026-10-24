@@ -19,3 +19,7 @@ installer/.built-from
 *.pfx
 *.p8
 AuthKey_*
+
+# Files the Claude desktop app saves from a session (copies of what was
+# sent into the chat), not part of the project.
+Claude outputs/

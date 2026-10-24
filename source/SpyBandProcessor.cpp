@@ -4,6 +4,7 @@
 
 #include "SpyBandProcessor.h"
 #include "SpyBandIDs.h"
+#include "BandLayout.h"
 #include "WavFile.h"
 
 #include "base/source/fstreamer.h"
@@ -21,8 +22,10 @@ namespace SpyBand {
 
 namespace {
 
-/** Bumped only if the layout below changes incompatibly. */
-constexpr int32 kStateVersion = 1;
+/** Bumped only if the layout below changes incompatibly.
+    2: Output Trim's travel grew from -60..0 dB to -60..+6 dB; a version 1
+       trim is converted on load so it keeps its decibels. */
+constexpr int32 kStateVersion = 2;
 
 /** A file path longer than this is refused rather than trusted - the
     length comes off a stream a host handed us. */
@@ -407,10 +410,10 @@ tresult PLUGIN_API SpyBandProcessor::notify (IMessage* message)
 			FReleaser releaser (reply);
 			reply->setMessageID (kSpyBandMeterDataMessage);
 
-			// [0] the voiced lamp, [1] the band count, [2] and [3] the
-			// left and right input peaks, then the bands.
-			double frame[4 + 2 * kMaxBands] = { 0.0 };
-			const int count = mVocoder.meter (frame + 4);
+			// The layout is kSpyBandMeterHeader's note in SpyBandIDs.h.
+			constexpr int kHead = kSpyBandMeterHeader;
+			double frame[kHead + 2 * kMaxBands] = { 0.0 };
+			const int count = mVocoder.meter (frame + kHead);
 			frame[0] = mVocoder.voicedState () ? 1.0 : 0.0;
 			frame[1] = static_cast<double> (count);
 
@@ -419,9 +422,16 @@ tresult PLUGIN_API SpyBandProcessor::notify (IMessage* message)
 			frame[2] = peakL;
 			frame[3] = peakR;
 
+			frame[4] = mVocoder.inputCorrelation ();
+
+			float outL = 0.0f, outR = 0.0f;
+			mVocoder.outputPeaks (outL, outR);
+			frame[5] = outL;
+			frame[6] = outR;
+
 			reply->getAttributes ()->setBinary (
 				kSpyBandMeterAttribute, frame,
-				static_cast<uint32> (sizeof (double) * (4 + count)));
+				static_cast<uint32> (sizeof (double) * (kHead + count)));
 			sendMessage (reply);
 		}
 		return kResultOk;
@@ -524,6 +534,9 @@ tresult PLUGIN_API SpyBandProcessor::setState (IBStream* state)
 			return kResultFalse;
 		mParamTargets[static_cast<ParamID> (i)] = value;
 	}
+
+	if (version < 2 && count > static_cast<int32> (kOutputTrim))
+		mParamTargets[kOutputTrim] = outputControlFromV1State (mParamTargets[kOutputTrim]);
 
 	int32 bypass = 0;
 	if (! streamer.readInt32 (bypass))

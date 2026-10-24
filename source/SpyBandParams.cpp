@@ -62,7 +62,7 @@ const ParamDef kParams[kNumScalarParams] =
 	// decibels, so a plain RangeParameter renders "-20.00 dB" with no
 	// custom toString to get wrong, and no risk of the value string and
 	// the units field both carrying a "dB".
-	{ kOutputTrim,       "Output Trim",            "dB", ParamType::Float, -60.0,  0.0, -20.0,  0.0,  1.0, 0, true  },
+	{ kOutputTrim,       "Output Trim",            "dB", ParamType::Float, -60.0,  6.0, -20.0,  0.0,  1.0, 0, true  },
 };
 
 //------------------------------------------------------------------------

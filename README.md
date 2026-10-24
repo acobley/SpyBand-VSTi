@@ -3,7 +3,7 @@
 A band vocoder, ported from the 2004 Cakewalk DXi to VST3 and Audio Unit
 for macOS.
 
-![The panel](docs/panel-preview.png)
+![The panel](docs/editor-bands.png)
 
 It runs the input through a bank of 9, 12, 18 or 22 bandpass filters, takes
 the envelope of each band of a second signal, and multiplies the two
@@ -27,16 +27,17 @@ always audible in the output. That is the plug-in working, not leaking.
 
 **2. It is nearly silent at its factory defaults.** Bottom Freq and Top
 Freq default to 1 % and 2 %, which puts all nine bands between **26.8 Hz
-and 51.8 Hz**. These are the DXi's own defaults, kept deliberately. Move
-both controls before judging anything.
+and 51.8 Hz**. These are the DXi's own defaults, kept deliberately. Pick
+**Classic 9-Band** from the preset bar (about 100 Hz to 7.9 kHz), or move
+both controls, before judging anything.
 
 **3. Interlace mode needs a genuinely stereo input.** It makes the LEFT
 channel the carrier and the RIGHT channel the modulator. Feed it a mono
 source — or a mono channel strip — and the signal becomes its own
 modulator: every band gets multiplied by its own envelope, which is a
-per-band squaring that sounds like harsh distortion. **Watch the two LED
-columns.** If they move identically, you have a mono source and no plug-in
-setting will help.
+per-band squaring that sounds like harsh distortion. **Watch INPUT
+CHECK.** If the L and R bars move identically and the SAME AUDIO lamp
+lights, you have a mono source and no plug-in setting will help.
 
 ---
 
@@ -162,15 +163,19 @@ minutes. If a build stops complaining that the source list changed, build
 again — that is the manifest guard doing its job.
 
 ```sh
-./tests/run-tests.sh      # three suites, no host and no window server needed
+./tests/run-tests.sh      # four suites, no host and no window server needed
 ```
 
 ## What else is here
 
 * **`docs/signal-path.png`** — the routing, drawn from the source.
   Worth two minutes if any of the above surprised you.
-* **`docs/panel-preview.png`** — the panel, rendered from the original
-  dialog's own geometry by `tools/preview-panel.py`.
+* **`docs/editor-*.png`** — the editor, drawn by the plug-in's own code
+  with no window by `tools/render-editor/build.sh` (Linux). The design it
+  implements is `Designs/SpyBand-Polivoks-1-BlackPanel.png` (R2Synth's
+  black panel, with its wear).
+* **`docs/panel-preview.png`** — the FIRST editor, a pixel recreation of
+  the DXi's dialog, rendered by `tools/preview-panel.py`. Kept as a record.
 * **`PORTING-NOTES.md`** — what the port changed and why, every deviation
   from the DXi with the measurement that settled it, and the traps. This is
   the file to read before changing any of the DSP.

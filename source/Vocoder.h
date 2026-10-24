@@ -73,7 +73,7 @@ public:
 		double voicedSense      = 0.2;
 		double noiseLevel       = 0.2;
 		double noiseHighFreq    = 0.01;
-		double outputTrim       = 1.0;   // NEW - control 0..1, 1.0 = the DXi's staging
+		double outputTrim       = -kOutputMinDb / kOutputSpanDb;   // NEW - control 0..1; this is 0 dB, the DXi's staging
 
 		bool enable        = true;
 		bool stereo        = false;
@@ -165,6 +165,18 @@ public:
 	    Same threading story as the band meter: two atomics written by the
 	    audio thread, read by the editor's timer. */
 	void inputPeaks (float& left, float& right) const;
+
+	/** How alike the two input channels are over the last block, at the
+	    same tap as inputPeaks(): the correlation coefficient, -1..+1, or
+	    kNoCorrelation when the block was too quiet to say. +1 means the
+	    two channels are one signal - which is the mono-into-Interlace
+	    failure the Input Check panel's lamp exists to catch. */
+	float inputCorrelation () const { return mCorrelation.load (std::memory_order_relaxed); }
+	static constexpr float kNoCorrelation = -2.0f;
+
+	/** Peak of the two OUTPUT channels over the last block, after the
+	    trim - the panel's OUT meter. */
+	void outputPeaks (float& left, float& right) const;
 
 	/** The voiced detector's last verdict. */
 	bool voicedState () const { return mVoicedStore.load (std::memory_order_relaxed); }
@@ -259,6 +271,13 @@ private:
 	std::atomic<int> mMeterCount { 0 };
 	std::atomic<float> mSrcPeakL { 0.0f };
 	std::atomic<float> mSrcPeakR { 0.0f };
+	std::atomic<float> mCorrelation { kNoCorrelation };
+	std::atomic<float> mOutPeakL { 0.0f };
+	std::atomic<float> mOutPeakR { 0.0f };
+
+	/** Store the correlation and output peaks for one block. */
+	void storeBlockStats (double sumLR, double sumLL, double sumRR,
+	                      float outPeakL, float outPeakR);
 
 	// What the current coefficients were computed FROM, so they are only
 	// recomputed when one of them moves - as the DXi did.
@@ -293,6 +312,7 @@ private:
 	bool   mHavePrevious = false;
 	bool   mLastBlockStereo = false;
 	int    mLastBlockBands = 9;
+	int    mLastBlockFrames = 0;
 	double mPeak = 0.0;
 };
 

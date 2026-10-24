@@ -99,7 +99,7 @@ assuming, because the next plug-in's will not be.
 | 22 | Filter Slopes | 3 steps | Shallow | **DEVIATION 2** |
 | 23 | Noise Override | 2 words | Input Carrier | **DEVIATION 5**, §6 |
 | 24 | Noise High Pass Freq | 0–100 % | 1 | 0.01 → 110.25 Hz |
-| 25 | Output Trim | −60..0 dB | −20 dB | **NEW**, §5 |
+| 25 | Output Trim | −60..+6 dB | −20 dB | **NEW**, §5 |
 | 26–509 | Patch, Mod *r* × Car *c* | 0–100 % | diagonal at 50 | **DEVIATION 4** |
 | 1000 | Bypass | | off | **NEW** |
 
@@ -398,6 +398,131 @@ gate closing.
 
 ---
 
+### Design2: the Concept 6 editor
+
+On the `Design2` branch the editor is no longer the DXi's dialog. It
+implements `Designs/SpyBand-Concept6-70sSciFiLettering.png` - Concept 5's
+display-first layout, with the matrix as a pin panel, in a 70s sci-fi
+lettering - at 1200 x 690. Everything above this heading describes the
+first editor, which is on `main` and is still the record of how the DXi's
+panel behaved.
+
+What did not change: every parameter id, range, default and readout, the
+state format, the UIDs. A project saved with either editor opens in the
+other. Everything new is in the controller and the panel.
+
+* **The lettering** (`SciFiLettering.*`) is drawn from scratch as stroked
+  paths on a 4 x 6 grid - no font file, no licence, no system text
+  anywhere on the panel, and no bitmaps. `SpyBandStyle.*` turns it into
+  CGraphicsPaths (quadratics converted to cubics) and holds the palette,
+  measured from the mock-up. Cap heights were taken from the mock-up's ink,
+  not guessed.
+* **The BANDS display** draws each band's filter as the response it
+  actually has (`bandResponse()` in BandLayout - the same biquad, cascaded
+  by Filter Slopes), so the curves are narrower than the mock-up's
+  illustrative bells: at 75 % Resonance the bandwidth is 0.19 octave.
+  Bottom and Top are handles that drag (Shift for fine), and show the band
+  EDGES - `bandBottomHz()` / `bandTopHz()`, 100 Hz and 7.87 kHz at 50 % /
+  92 % - which is what the mock-up labels. The first editor showed the
+  centre of the first and last band instead.
+* **The matrix is transposed on screen**: rows are the modulator (amber,
+  down the left), columns the carrier (blue, along the bottom). The ids
+  are unchanged - row is still the modulator. Click toggles a pin as
+  before; a vertical drag now moves a cell by half its range per 100
+  pixels (the DXi needed 25 pixels per hundredth). DIAGONAL, REVERSE,
+  SHIFT and CLEAR work on the bands in use and clear the rest.
+* **Presets.** Eight factory presets (`SpyBandPresets.cpp`), led by
+  Classic 9-Band (50 % / 92 %), which is the answer to the nearly-silent
+  defaults. They leave the samples and slot switches alone. SAVE writes a
+  `.vstpreset` into the standard folder (`~/Library/Audio/Presets/AE
+  Cobley/SpyBand`) whose component chunk is exactly the processor's state,
+  so hosts that browse that folder can load it too; PanelTests checks the
+  encoder against the processor's layout field by field. The controller
+  now has a state of its own - the preset name - so a project reopens
+  showing it.
+* **INPUT CHECK** replaces the LED columns: the same two taps as bars,
+  plus a correlation coefficient computed per block at the same point in
+  `Vocoder::process` and a lamp that lights when it stays above 0.985 for
+  half a second. That is the mono-into-Interlace failure answered without
+  having to watch two meters. The meter frame grew a header of eight
+  doubles (`kSpyBandMeterHeader`) carrying it and the output peaks for
+  the OUT meter.
+* **Slots** show a waveform overview, read by the controller from the
+  file with the processor's own reader, take a dropped .wav, and offer
+  Choose / Clear on right-click.
+* **Rendering without a window.** `buildViews()` is separate from
+  `open()`, so `tools/render-editor/build.sh` can build the real editor
+  into a CFrame it never opens and draw it with VSTGUI's cairo back end.
+  That is how the panel was compared with the mock-up, on Linux, with no
+  X11, xcb or pango packages. The pictures are `docs/editor-*.png`.
+
+### The black panel (Design2, 24 Oct 2026)
+
+The Concept 6 editor above has been redressed as
+`Designs/SpyBand-Polivoks-1-BlackPanel.png`: R2Synth's released look
+(its `PolivoksUI` branch), so the two plug-ins match. **The same layout
+and the same parameters**; the processor, controller and DSP are
+untouched, and so is every interaction described above.
+
+* **Look**: matte black (`#121212`), white printing, each section boxed in
+  a thin white line with its title in its own outlined box; black
+  knurled knobs with a white line and a printed 11-tick scale (`0`/`10`,
+  `-`/`+` on Trim); corner screws; a white rule under the header; the
+  wordmark SPY BAND all white with its inline cut. Colour only on the
+  glass of the OLED screens - carrier blue `#2fb8ff`, modulator amber
+  `#ffb23a`, output green `#38f0a0` - and red `#e2342b` for what is SET:
+  a selector's chosen position, a pin, a lit lamp (slot playing, bypass,
+  voiced, same audio).
+* **Every switch is a rotary selector** (`SpySelector`, replacing
+  `SpySegment` on the panel): a chicken head, positions printed round it,
+  the chosen one white with a red mark. Click a position's name (or off
+  the knob towards it) to pick it; click the knob to step; the wheel
+  steps. SINGLE SHOT is printed ONCE and RIGHT INPUT is RIGHT IN, to fit.
+  `SpySegment` survives only on the Input page's glass, for MONO / STEREO.
+* **OLED screens**: the big screen, the Input Check and the OUT meter are
+  black glass in a black cut-out 3 px larger, with a dot grid; traces are
+  crisp with a slight bloom; meters are segmented. Each slot's waveform
+  has a small glass of its own once a file is loaded (a dashed outline
+  while empty). Pins: red at 100 %, white at 50 %, blended between, dimmer
+  below 50 %; open sockets are dark holes.
+* **The centre section's title follows the tab** - MATRIX, BANDS, INPUT -
+  printed by `SpyTabs`; the tabs are outlined buttons with a red bar
+  under the chosen one, as are the pattern buttons when the matrix is
+  that pattern.
+* **New, VSTGUI-free: `source/SpyBandLayout.h`** - every position, the
+  lettering's sizes, and the selector geometry (where a position's name
+  is printed, which position a click picks) - and
+  **`source/SpyBandWear.h`**, R2Synth's `PanelWear.h` ported: haze, drifts
+  inside each box, a dust ring round every knob and selector, hairline
+  scratches that stop at the glass, specks and fibres; per knob, scuffs
+  and grit that turn with the pointer and a polished sheen; per selector,
+  grit round the hub; per screen, dust, a fibre, and a fingerprint on the
+  big screen and on the Input Check. Generated from fixed seeds with its
+  own SplitMix64 and one random number per statement, so every machine
+  makes the same marks; fibres bend less than R2Synth's (0.05 for 0.12),
+  which could curl one into a ring. The glass's wear and sheen are drawn
+  by `SpyGlass` views added over each screen, so a meter redrawing does
+  not wipe them.
+* **Tests**: PanelTests gained `layoutTests` (every title, subtitle,
+  position name, knob label and button word fits where it is printed;
+  nothing overlaps; a click on a name picks it) and `wearTests` (the same
+  marks every run, pinned to recorded counts and the first speck's place;
+  every mark on the panel, off the glass, and faint).
+* **Turning BANDS re-fits the matrix** (fixed 24 Oct 2026). Going from 9
+  bands to 22 used to leave the pattern in the top-left 9 x 9 - the
+  pattern buttons clear every cell past the count - so thirteen bands had
+  no pin and were not heard. Now the editor's turn of the selector ends
+  with `refitMatrix()` (SpyBandPresets): a complete diagonal or reverse,
+  shifted or not, is laid out again at the new count with its pins'
+  levels; any other pin moves to the same relative row and column. The
+  count and the cells it moves are one group edit. Presets, projects and
+  host automation of the count leave the matrix as they find it.
+  PanelTests holds the cases (9 -> 22 -> 9, reverse, shifted, levels,
+  extras, a free patch, empty).
+* **Two new headers**: re-run `./setup-xcode.sh` before building in Xcode
+  (the manifest guard will say so). `tools/render-editor/build.sh` needs
+  no change. `docs/editor-*.png` are the new panel.
+
 ## 4. Testing
 
 Three suites, `tests/run-tests.sh`, none of which needs a host or a window
@@ -491,8 +616,12 @@ accumulation, and none of it is compensated anywhere:
 * every patch cell is stored as `2.0 * value`;
 * and the bands are summed, so more bands is more level.
 
-**Output Trim** is new. Its travel is −60 dB to 0 dB, so the **top of it is
-the DXi's own staging** — nothing is lost, and it is one turn away. It
+**Output Trim** is new. Its travel is −60 dB to **+6 dB**: 0 dB is **the
+DXi's own staging**, so nothing is lost, and the last 6 dB is make-up gain
+for thin settings (few bands, low Src/Wav Level). Until state version 2 the
+travel stopped at 0 dB; a version 1 project or .vstpreset has its trim
+converted on load (`outputControlFromV1State`) so it keeps its decibels.
+A version 2 state is refused by builds older than this change. It
 defaults to **−20 dB**, which puts the default patch between −18 and
 −23 dBFS peak. 60 dB rather than the 40 the earlier ports used because this
 one needs it.

@@ -48,6 +48,16 @@ static const char* const kSpyBandMeterRequestMessage = "SpyBandMeterRequest";
 static const char* const kSpyBandMeterDataMessage    = "SpyBandMeterData";
 static const char* const kSpyBandMeterAttribute      = "Meter";
 
+/** The meter frame is an array of doubles: this many header slots, then
+    the band envelopes.
+
+      [0] the voiced lamp            [4] input correlation, -1..+1, or
+      [1] how many bands follow          below -1.5 for "too quiet to say"
+      [2] left input peak            [5] left output peak
+      [3] right input peak           [6] right output peak
+                                     [7] reserved, zero */
+constexpr int kSpyBandMeterHeader = 8;
+
 /** Processor -> controller, from setState and after a load: what actually
     happened to each slot, so the editor can label a button with the file
     name it really has and grey one whose file has gone missing. */

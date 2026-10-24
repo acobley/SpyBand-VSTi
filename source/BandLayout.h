@@ -43,6 +43,28 @@ int bandCount (double internal);
 double bandCentreHz (double freqInternal, double spreadInternal,
                      int bands, int index, double sampleRate);
 
+/** The two ends of the band span, in Hz: where the lowest band's lower
+    edge and the highest band's upper edge sit. These are the numbers the
+    Bottom and Top controls name - 100 Hz and 7.87 kHz at 50 % and 92 % -
+    and bandCentreHz() divides the span between them. Same arithmetic,
+    so they cannot disagree with it. */
+double bandBottomHz (double freqInternal);
+double bandTopHz (double freqInternal, double spreadInternal, double sampleRate);
+
+/** The inverses, for the band display's drag handles: the control value
+    that puts the bottom edge at `hz`, and the spread that puts the top
+    edge at `hz` for a given bottom. Both clamped to 0..1. */
+double freqForBottomHz (double hz);
+double spreadForTopHz (double hz, double freqInternal);
+
+/** Magnitude, 0..1, of one band's filter at `hz` - the response the DSP
+    actually has, for drawing. The band is the bandpass biquad in
+    Vocoder::setFilterConstants (bandwidth = resonance / 4 octaves) at
+    `centreHz`, cascaded once, twice or three times by Filter Slopes
+    (`slopes` 0..2). It peaks at exactly 1 at the centre. */
+double bandResponse (double hz, double centreHz, double resonanceInternal,
+                     int slopes, double sampleRate);
+
 /** The noise high-pass corner, from CSpyBand::setNoiseHighFilterConstants:
     a quarter of the sample rate, scaled by the control. */
 double noiseHighPassHz (double internal, double sampleRate);
@@ -61,21 +83,31 @@ double envReleaseMs (double internal);
 // input by 5, its envelopes by 10, every filter output by 3 and every patch
 // value by 2, and none of that is compensated anywhere.
 //
-// The control's travel is -60 dB to 0 dB, so the TOP of it is the DXi's own
-// staging and nothing is lost. 60 dB rather than the 40 the earlier ports
-// used because SpyBand needs it: see the measurements in PORTING-NOTES
-// section 5, where the extreme settings reach +48 dBFS.
+// The control's travel is -60 dB to +6 dB. 0 dB is the DXi's own staging,
+// so nothing is lost, and the top 6 dB is make-up gain for thin settings
+// (few bands, low Src/Wav Level). 60 dB of cut rather than the 40 the
+// earlier ports used because SpyBand needs it: see the measurements in
+// PORTING-NOTES section 5, where the extreme settings reach +48 dBFS.
+//
+// Before state version 2 the travel stopped at 0 dB; see
+// outputControlFromV1State.
 //------------------------------------------------------------------------
-constexpr double kOutputRangeDb = 60.0;
+constexpr double kOutputMinDb = -60.0;
+constexpr double kOutputMaxDb =   6.0;
+constexpr double kOutputSpanDb = kOutputMaxDb - kOutputMinDb;
 
-/** Trim control (0..1) -> a linear gain. 1.0 is the DXi's own staging. */
+/** Trim control (0..1) -> a linear gain. 0 dB is the DXi's own staging. */
 double outputGain (double control);
 
-/** The same in decibels, for display: -kOutputRangeDb .. 0. */
+/** The same in decibels, for display: kOutputMinDb .. kOutputMaxDb. */
 double outputDecibels (double control);
 
 /** The inverse of outputDecibels, clamped to the control's travel. */
 double outputControlFromDb (double db);
+
+/** A trim value saved by state version 1 (travel -60..0 dB) -> the same
+    decibels on today's control, so old projects and presets sound the same. */
+double outputControlFromV1State (double v1Control);
 
 //------------------------------------------------------------------------
 } // namespace SpyBand
