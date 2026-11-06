@@ -40,7 +40,7 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET 10.13 CACHE STRING "macOS deployment target")
 # loses it.
 #-----------------------------------------------------------------------------
 set(PLUGIN_NAME         "SpyBand")
-set(PLUGIN_VERSION      "1.1.0.0")
+set(PLUGIN_VERSION      "1.1.1.0")
 set(PLUGIN_DESCRIPTION  "SpyBand - a port of the SpyBand DXi vocoder")
 set(PLUGIN_COMPANY      "AE Cobley")
 set(PLUGIN_BUNDLE_ID    "audio.spyband.vst3")
