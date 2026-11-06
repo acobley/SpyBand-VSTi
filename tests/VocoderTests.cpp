@@ -16,6 +16,7 @@
 
 #include "BandLayout.h"
 #include "Vocoder.h"
+#include "DenormalGuard.h"
 
 #include <cmath>
 #include <cstdio>
@@ -650,6 +651,22 @@ int main ()
 		chk (bandCount (i) == kBandCounts[i], "bandCount does not match the table");
 	chk (bandCount (-5.0) == 9, "an out-of-range band control did not clamp low");
 	chk (bandCount (99.0) == 22, "an out-of-range band control did not clamp high");
+
+	// The guard process() runs under. Every value through memory: the
+	// guard orders memory accesses round its mode switch, not register
+	// arithmetic.
+	std::printf ("flush-to-zero guard\n");
+	if (ScopedFlushDenormals::supported ())
+	{
+		volatile float tiny = 1.0e-37f, half = 0.01f;
+		volatile float before = tiny * half;
+		volatile float inside = 1.f;
+		{ ScopedFlushDenormals guard; inside = tiny * half; }
+		volatile float after = tiny * half;
+		chk (before != 0.f, "control: 1e-37 x 0.01 is a denormal without the guard");
+		chk (inside == 0.f, "ScopedFlushDenormals did not flush to zero");
+		chk (after == before, "ScopedFlushDenormals did not restore the host's FPU mode");
+	}
 
 	std::printf (fails ? "\n%d FAILURES\n" : "\nall vocoder checks passed\n", fails);
 	return fails ? 1 : 0;

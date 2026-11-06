@@ -3,6 +3,7 @@
 //------------------------------------------------------------------------
 
 #include "SpyBandProcessor.h"
+#include "DenormalGuard.h"
 #include "SpyBandIDs.h"
 #include "BandLayout.h"
 #include "WavFile.h"
@@ -254,6 +255,10 @@ void SpyBandProcessor::buildVocoderParams (Vocoder::Params& p) const
 //------------------------------------------------------------------------
 tresult PLUGIN_API SpyBandProcessor::process (ProcessData& data)
 {
+	// Flush-to-zero for this call only; the host's FPU mode comes back on
+	// return. See DenormalGuard.h.
+	ScopedFlushDenormals noDenormals;
+
 	applyParameterChanges (data.inputParameterChanges);
 
 	if (data.numSamples <= 0 || data.numOutputs <= 0 || data.outputs == nullptr)

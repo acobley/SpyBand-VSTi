@@ -932,6 +932,29 @@ Worth knowing about, none of it ported:
 
 ---
 
+## 7b. Flush-to-zero around process() (6 Nov 2026)
+
+From the DXi-DEv audit (`AUDIT-denormals-aliasing.md`). SpyBand needed no
+denormal or aliasing fix:
+
+* `clean()` and `bounded()` in `Vocoder.cpp` zero every filter state and
+  envelope below 1e-30, and the DXi's anti-denormal noise is still added;
+* the vocoder multiplies bands by smoothed envelopes, not by other audio bands,
+  so nothing makes significant out-of-band content.
+
+For consistency with the other plug-ins, `ScopedFlushDenormals`
+(`source/DenormalGuard.h`) now wraps `SpyBandProcessor::process` as belt and
+braces. It sets FPCR FZ on arm64 (MXCSR FTZ + DAZ on x86_64) for the length of
+the call and restores the host's mode on return. The asm carries `"memory"`
+clobbers, with a barrier beside `_mm_setcsr`. Nothing in C++ ties a multiply to
+the FPU control register, and without them the compiler may move arithmetic
+across the switch; on arm64 at −O2 it did, in ForTran.
+
+`VocoderTests` "flush-to-zero guard" checks that it flushes inside and restores
+after. Adding the header adds a file to `source/`, so re-run
+`./setup-xcode.sh` before the next Xcode build (`build-all.sh` in `~/DXi-DEv`
+does).
+
 ## 8. Identity — never change these
 
 Once a build has shipped, a changed identifier means every existing session
