@@ -99,7 +99,7 @@ Taken from the finished, notarised and **stapled** package - stapling changes
 the bytes, so a checksum taken before it does not match what you downloaded.
 
 ```
-SHA-256: <paste from: shasum -a 256 installer/SpyBand-1.1.1.0.pkg>
+SHA-256: 37fe0b6859ed6dcad408ee02747c52076dfab3568ced5ae54b6e2212e9be565d
 ```
 
 ---
